@@ -14,7 +14,8 @@ jobs:
       NODE_VERSION: 22.x
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,7 +33,7 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build React App
+      - name: Build React App (Validation)
         run: npm run build
 
 
@@ -44,7 +45,8 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -66,10 +68,28 @@ jobs:
           echo "ENV=$ENV" >> $GITHUB_ENV
           echo "Using environment: $ENV"
 
+      - name: Set Frontend Environment Variables
+        run: |
+          if [[ "$ENV" == "uat" ]]; then
+            echo "VITE_ENVIRONMENT=development" >> $GITHUB_ENV
+            echo "VITE_HOST_DOMAIN=midfinvisitoruat.midlandmicrofin.co.in" >> $GITHUB_ENV
+            echo "VITE_API_TIMEOUT=30000" >> $GITHUB_ENV
+          else
+            echo "VITE_ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "VITE_HOST_DOMAIN=midfinvisitor.midlandmicrofin.co.in" >> $GITHUB_ENV
+            echo "VITE_API_TIMEOUT=30000" >> $GITHUB_ENV
+          fi
+
       - name: Build and Push Docker Image
         run: |
           IMAGE="ghcr.io/techlead-midland/midland-microfin-ltd/visitor-management-frontend:${ENV}"
 
           echo "Building image: $IMAGE"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
+
+          docker build \
+            --build-arg VITE_ENVIRONMENT=${VITE_ENVIRONMENT} \
+            --build-arg VITE_HOST_DOMAIN=${VITE_HOST_DOMAIN} \
+            --build-arg VITE_API_TIMEOUT=${VITE_API_TIMEOUT} \
+            -t "$IMAGE" .
+
+          docker push "$IMAGE"`
