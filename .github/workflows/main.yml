@@ -92,4 +92,4 @@ jobs:
             --build-arg VITE_API_TIMEOUT=${VITE_API_TIMEOUT} \
             -t "$IMAGE" .
 
-          docker push "$IMAGE"`
+          docker push "$IMAGE"
