@@ -1,0 +1,12 @@
+node_modules
+.git
+*.log
+*.cache
+dist
+awscliv2.zip
+aws
+Dockerfile
+.dockerignore
+logs
+temp
+tmp
