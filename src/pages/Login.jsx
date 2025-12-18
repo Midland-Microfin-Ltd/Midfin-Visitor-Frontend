@@ -60,7 +60,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(0); // Visitor QR is now first tab
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [generatedQRCode, setGeneratedQRCode] = useState("");
   const [qrLoading, setQrLoading] = useState(false);
@@ -320,25 +320,7 @@ const Login = () => {
                       },
                     }}
                   >
-                    <Tab
-                      label={
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            py: 0.5,
-                          }}
-                        >
-                          <SecurityIcon fontSize="small" />
-                          <Typography
-                            sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
-                          >
-                            ADMIN LOGIN
-                          </Typography>
-                        </Box>
-                      }
-                    />
+                    {/* VISITOR QR TAB FIRST */}
                     <Tab
                       label={
                         <Box
@@ -358,213 +340,33 @@ const Login = () => {
                         </Box>
                       }
                     />
+                    {/* ADMIN LOGIN TAB SECOND */}
+                    <Tab
+                      label={
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            py: 0.5,
+                          }}
+                        >
+                          <SecurityIcon fontSize="small" />
+                          <Typography
+                            sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem" } }}
+                          >
+                            ADMIN LOGIN
+                          </Typography>
+                        </Box>
+                      }
+                    />
                   </Tabs>
 
                   <Divider
                     sx={{ mb: 3, borderColor: "rgba(255, 255, 255, 0.1)" }}
                   />
 
-                  {activeTab === 0 ? (
-                    <Box>
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        align="center"
-                        sx={{
-                          fontWeight: 600,
-                          mb: 3,
-                          color: "white",
-                          fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                        }}
-                      >
-                        Admin Dashboard Access
-                      </Typography>
-
-                      {error && (
-                        <Alert
-                          severity="error"
-                          sx={{
-                            mb: 2,
-                            borderRadius: 2,
-                            backgroundColor: "rgba(211, 47, 47, 0.1)",
-                            color: "#ff6b6b",
-                            py: 0.5,
-                            fontSize: { xs: "0.8rem", sm: "0.85rem" },
-                          }}
-                          onClose={() => setError("")}
-                        >
-                          {error}
-                        </Alert>
-                      )}
-
-                      <form onSubmit={handleSubmit}>
-                        <TextField
-                          fullWidth
-                          label="Username / Email"
-                          variant="outlined"
-                          margin="normal"
-                          size="small"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          disabled={loading}
-                          autoFocus
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: 2,
-                              backgroundColor: "rgba(255, 255, 255, 0.05)",
-                              "& fieldset": {
-                                borderColor: "rgba(255, 255, 255, 0.2)",
-                              },
-                              "&:hover fieldset": {
-                                borderColor: "rgba(255, 255, 255, 0.3)",
-                              },
-                              "&.Mui-focused fieldset": {
-                                borderColor: "#1976d2",
-                              },
-                            },
-                            "& .MuiInputLabel-root": {
-                              color: "rgba(255, 255, 255, 0.7)",
-                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
-                              "&.Mui-focused": {
-                                color: "#1976d2",
-                              },
-                            },
-                            "& .MuiInputBase-input": {
-                              color: "white",
-                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
-                              py: 1.5,
-                            },
-                          }}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <BadgeIcon
-                                  sx={{
-                                    color: "rgba(255, 255, 255, 0.5)",
-                                    fontSize: { xs: "1rem", sm: "1.1rem" },
-                                  }}
-                                />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-
-                        <TextField
-                          fullWidth
-                          label="Password"
-                          type={showPassword ? "text" : "password"}
-                          variant="outlined"
-                          margin="normal"
-                          size="small"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          disabled={loading}
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: 2,
-                              backgroundColor: "rgba(255, 255, 255, 0.05)",
-                              "& fieldset": {
-                                borderColor: "rgba(255, 255, 255, 0.2)",
-                              },
-                              "&:hover fieldset": {
-                                borderColor: "rgba(255, 255, 255, 0.3)",
-                              },
-                              "&.Mui-focused fieldset": {
-                                borderColor: "#1976d2",
-                              },
-                            },
-                            "& .MuiInputLabel-root": {
-                              color: "rgba(255, 255, 255, 0.7)",
-                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
-                              "&.Mui-focused": {
-                                color: "#1976d2",
-                              },
-                            },
-                            "& .MuiInputBase-input": {
-                              color: "white",
-                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
-                              py: 1.5,
-                            },
-                          }}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <SecurityIcon
-                                  sx={{
-                                    color: "rgba(255, 255, 255, 0.5)",
-                                    fontSize: { xs: "1rem", sm: "1.1rem" },
-                                  }}
-                                />
-                              </InputAdornment>
-                            ),
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton
-                                  aria-label="toggle password visibility"
-                                  onClick={() => setShowPassword(!showPassword)}
-                                  edge="end"
-                                  size="small"
-                                  sx={{
-                                    color: "rgba(255, 255, 255, 0.7)",
-                                    fontSize: { xs: "1rem", sm: "1.1rem" },
-                                    "&:hover": {
-                                      backgroundColor: "rgba(255, 255, 255, 0.1)",
-                                      color: "white",
-                                    },
-                                  }}
-                                >
-                                  {showPassword ? (
-                                    <VisibilityOff />
-                                  ) : (
-                                    <Visibility />
-                                  )}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-
-                        <Button
-                          fullWidth
-                          variant="contained"
-                          color="primary"
-                          size="medium"
-                          type="submit"
-                          disabled={loading}
-                          startIcon={
-                            loading ? (
-                              <CircularProgress size={18} color="inherit" />
-                            ) : (
-                              <LoginIcon />
-                            )
-                          }
-                          sx={{
-                            mt: 2,
-                            mb: 1.5,
-                            py: 1.2,
-                            borderRadius: 2,
-                            fontWeight: 600,
-                            fontSize: { xs: "0.9rem", sm: "0.95rem" },
-                            textTransform: "none",
-                            background:
-                              "linear-gradient(45deg, #1976d2 0%, #21CBF3 100%)",
-                            "&:hover": {
-                              background:
-                                "linear-gradient(45deg, #1565c0 0%, #00B0FF 100%)",
-                              transform: "translateY(-2px)",
-                              boxShadow: "0 8px 16px rgba(25, 118, 210, 0.3)",
-                            },
-                            "&.Mui-disabled": {
-                              background: "rgba(255, 255, 255, 0.1)",
-                            },
-                            transition: "all 0.3s ease",
-                          }}
-                        >
-                          {loading ? "Signing in..." : "Sign in to Dashboard"}
-                        </Button>
-                      </form>
-                    </Box>
-                  ) : (
+                  {activeTab === 0 ? ( // VISITOR QR CONTENT
                     <Box sx={{ textAlign: "center" }}>
                       <Typography
                         variant="h6"
@@ -772,6 +574,206 @@ const Login = () => {
                       >
                         Scan QR → Fill form → Approval → Check-in
                       </Typography>
+                    </Box>
+                  ) : ( // ADMIN LOGIN CONTENT (now tab 1)
+                    <Box>
+                      <Typography
+                        variant="h6"
+                        gutterBottom
+                        align="center"
+                        sx={{
+                          fontWeight: 600,
+                          mb: 3,
+                          color: "white",
+                          fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                        }}
+                      >
+                        Admin Dashboard Access
+                      </Typography>
+
+                      {error && (
+                        <Alert
+                          severity="error"
+                          sx={{
+                            mb: 2,
+                            borderRadius: 2,
+                            backgroundColor: "rgba(211, 47, 47, 0.1)",
+                            color: "#ff6b6b",
+                            py: 0.5,
+                            fontSize: { xs: "0.8rem", sm: "0.85rem" },
+                          }}
+                          onClose={() => setError("")}
+                        >
+                          {error}
+                        </Alert>
+                      )}
+
+                      <form onSubmit={handleSubmit}>
+                        <TextField
+                          fullWidth
+                          label="Username / Email"
+                          variant="outlined"
+                          margin="normal"
+                          size="small"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          disabled={loading}
+                          autoFocus
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: 2,
+                              backgroundColor: "rgba(255, 255, 255, 0.05)",
+                              "& fieldset": {
+                                borderColor: "rgba(255, 255, 255, 0.2)",
+                              },
+                              "&:hover fieldset": {
+                                borderColor: "rgba(255, 255, 255, 0.3)",
+                              },
+                              "&.Mui-focused fieldset": {
+                                borderColor: "#1976d2",
+                              },
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "rgba(255, 255, 255, 0.7)",
+                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                              "&.Mui-focused": {
+                                color: "#1976d2",
+                              },
+                            },
+                            "& .MuiInputBase-input": {
+                              color: "white",
+                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                              py: 1.5,
+                            },
+                          }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <BadgeIcon
+                                  sx={{
+                                    color: "rgba(255, 255, 255, 0.5)",
+                                    fontSize: { xs: "1rem", sm: "1.1rem" },
+                                  }}
+                                />
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+
+                        <TextField
+                          fullWidth
+                          label="Password"
+                          type={showPassword ? "text" : "password"}
+                          variant="outlined"
+                          margin="normal"
+                          size="small"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          disabled={loading}
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: 2,
+                              backgroundColor: "rgba(255, 255, 255, 0.05)",
+                              "& fieldset": {
+                                borderColor: "rgba(255, 255, 255, 0.2)",
+                              },
+                              "&:hover fieldset": {
+                                borderColor: "rgba(255, 255, 255, 0.3)",
+                              },
+                              "&.Mui-focused fieldset": {
+                                borderColor: "#1976d2",
+                              },
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: "rgba(255, 255, 255, 0.7)",
+                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                              "&.Mui-focused": {
+                                color: "#1976d2",
+                              },
+                            },
+                            "& .MuiInputBase-input": {
+                              color: "white",
+                              fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                              py: 1.5,
+                            },
+                          }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SecurityIcon
+                                  sx={{
+                                    color: "rgba(255, 255, 255, 0.5)",
+                                    fontSize: { xs: "1rem", sm: "1.1rem" },
+                                  }}
+                                />
+                              </InputAdornment>
+                            ),
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  aria-label="toggle password visibility"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  edge="end"
+                                  size="small"
+                                  sx={{
+                                    color: "rgba(255, 255, 255, 0.7)",
+                                    fontSize: { xs: "1rem", sm: "1.1rem" },
+                                    "&:hover": {
+                                      backgroundColor: "rgba(255, 255, 255, 0.1)",
+                                      color: "white",
+                                    },
+                                  }}
+                                >
+                                  {showPassword ? (
+                                    <VisibilityOff />
+                                  ) : (
+                                    <Visibility />
+                                  )}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          color="primary"
+                          size="medium"
+                          type="submit"
+                          disabled={loading}
+                          startIcon={
+                            loading ? (
+                              <CircularProgress size={18} color="inherit" />
+                            ) : (
+                              <LoginIcon />
+                            )
+                          }
+                          sx={{
+                            mt: 2,
+                            mb: 1.5,
+                            py: 1.2,
+                            borderRadius: 2,
+                            fontWeight: 600,
+                            fontSize: { xs: "0.9rem", sm: "0.95rem" },
+                            textTransform: "none",
+                            background:
+                              "linear-gradient(45deg, #1976d2 0%, #21CBF3 100%)",
+                            "&:hover": {
+                              background:
+                                "linear-gradient(45deg, #1565c0 0%, #00B0FF 100%)",
+                              transform: "translateY(-2px)",
+                              boxShadow: "0 8px 16px rgba(25, 118, 210, 0.3)",
+                            },
+                            "&.Mui-disabled": {
+                              background: "rgba(255, 255, 255, 0.1)",
+                            },
+                            transition: "all 0.3s ease",
+                          }}
+                        >
+                          {loading ? "Signing in..." : "Sign in to Dashboard"}
+                        </Button>
+                      </form>
                     </Box>
                   )}
 

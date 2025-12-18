@@ -23,7 +23,8 @@ import {
   Brightness7 as LightModeIcon,
   Logout as LogoutIcon,
   People as PeopleIcon,
-  ManageAccounts as ManageAccountsIcon
+  ManageAccounts as ManageAccountsIcon,
+  ConfirmationNumber as PassIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useThemeContext } from '../context/ThemeContext';
@@ -32,10 +33,10 @@ const drawerWidth = 240;
 const miniDrawerWidth = 73;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  // { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Visitors', icon: <PeopleIcon />, path: '/visitors' },
   { text: 'Management', icon: <ManageAccountsIcon />, path: '/management' },
-  { text: 'Passes', icon: <ManageAccountsIcon />, path: '/passes' }
+  { text: 'Passes', icon: <PassIcon />, path: '/passes' }
 ];
 
 const MiniDrawer = ({ children }) => {
