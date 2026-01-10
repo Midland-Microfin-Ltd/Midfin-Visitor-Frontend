@@ -30,6 +30,8 @@ import {
   Stack,
   Alert,
   Link,
+  AppBar,
+  Toolbar,
 } from "@mui/material";
 import {
   Phone as PhoneIcon,
@@ -46,6 +48,8 @@ import {
   CameraAlt as CameraAltIcon,
   DeleteOutline as DeleteOutlineIcon,
   CloudUpload as CloudUploadIcon,
+  ArrowBack as ArrowBackIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import {
   sendOtp,
@@ -241,8 +245,91 @@ export default function VisitorForm() {
   const [isUploadingSelfie, setIsUploadingSelfie] = useState(false);
   const [selfieResponse, setSelfieResponse] = useState(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState(null);
+  const [qrCode, setQrCode] = useState("");
 
   const fileInputRef = useRef(null);
+
+  // Add this useEffect to handle fullscreen and QR code
+  useEffect(() => {
+    // Get QR code from session storage or URL
+    const storedQR = sessionStorage.getItem("visitorQRCode");
+    if (storedQR) {
+      setQrCode(storedQR);
+    } else {
+      // Get from URL path
+      const path = window.location.hash;
+      const match = path.match(/\/register\/(VISITOR-[A-Z0-9]+-[0-9]+)/);
+      if (match && match[1]) {
+        setQrCode(match[1]);
+        sessionStorage.setItem("visitorQRCode", match[1]);
+        sessionStorage.setItem("qrTimestamp", Date.now().toString());
+      }
+    }
+
+    // Force fullscreen mode on mobile
+    const setFullscreenHeight = () => {
+      // Calculate viewport height properly for mobile
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--vh", `${vh}px`);
+
+      // Hide address bar on mobile
+      setTimeout(() => {
+        window.scrollTo(0, 1);
+      }, 100);
+
+      // Set body height
+      document.body.style.height = `${window.innerHeight}px`;
+    };
+
+    // Initial call
+    setFullscreenHeight();
+
+    // Prevent pull-to-refresh on mobile
+    let lastTouchY = 0;
+    const handleTouchStart = (e) => {
+      lastTouchY = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e) => {
+      const touchY = e.touches[0].clientY;
+      const touchDiff = touchY - lastTouchY;
+
+      // If user is pulling down from top of page, prevent it
+      if (window.scrollY === 0 && touchDiff > 0) {
+        e.preventDefault();
+      }
+
+      lastTouchY = touchY;
+    };
+
+    // Add event listeners
+    window.addEventListener("resize", setFullscreenHeight);
+    window.addEventListener("orientationchange", setFullscreenHeight);
+    document.addEventListener("touchstart", handleTouchStart, {
+      passive: false,
+    });
+    document.addEventListener("touchmove", handleTouchMove, { passive: false });
+
+    // Prevent zoom on double tap
+    let lastTouchEnd = 0;
+    const preventZoom = (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    };
+    document.addEventListener("touchend", preventZoom, { passive: false });
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("resize", setFullscreenHeight);
+      window.removeEventListener("orientationchange", setFullscreenHeight);
+      document.removeEventListener("touchstart", handleTouchStart);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", preventZoom);
+    };
+  }, []);
 
   // Derived values
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
@@ -478,6 +565,12 @@ export default function VisitorForm() {
     setActiveStep(step);
   };
 
+  const handleBack = () => {
+    if (activeStep > 0) {
+      setActiveStep(activeStep - 1);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selfieResponse || !selfieResponse.visitorId) {
       setErrorMessage("Please upload a photo before submitting.");
@@ -503,6 +596,7 @@ export default function VisitorForm() {
       registerdBy: "self", // Self registration
       // Additional fields that might be needed
       company: formData.company || "",
+      qrCode: qrCode || "", // Include QR code in submission
       // visitorId is NOT included in body - will be URL parameter
     };
 
@@ -516,6 +610,9 @@ export default function VisitorForm() {
       if (response?.success || response?.data?.success) {
         // Success - show thank you message
         setIsSubmitted(true);
+        // Clear session storage
+        sessionStorage.removeItem("visitorQRCode");
+        sessionStorage.removeItem("qrTimestamp");
       } else {
         throw new Error(response?.message || "Failed to submit registration");
       }
@@ -543,17 +640,32 @@ export default function VisitorForm() {
     setUploadedPhotoUrl(null);
   };
 
+  const handleClose = () => {
+    // Clear session and close
+    sessionStorage.removeItem("visitorQRCode");
+    sessionStorage.removeItem("qrTimestamp");
+    window.close();
+  };
+
   if (isSubmitted) {
     return (
       <Box
         sx={{
-          minHeight: "100vh",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           p: { xs: 2, sm: 3 },
+          backgroundColor: "#0a1929",
           background:
             "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          height: "100vh",
+          height: "calc(var(--vh, 1vh) * 100)",
+          overflow: "hidden",
         }}
       >
         <Zoom in timeout={800}>
@@ -607,6 +719,21 @@ export default function VisitorForm() {
             >
               Fill Another Form
             </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={handleClose}
+              sx={{
+                mt: 2,
+                color: "rgba(255, 255, 255, 0.7)",
+                borderColor: "rgba(255, 255, 255, 0.3)",
+                "&:hover": {
+                  borderColor: "rgba(255, 255, 255, 0.5)",
+                },
+              }}
+            >
+              Close
+            </Button>
           </Card>
         </Zoom>
       </Box>
@@ -616,784 +743,202 @@ export default function VisitorForm() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        flexDirection: "column",
+        backgroundColor: "#0a1929",
         background:
           "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
-        p: { xs: 1, sm: 2 },
+        height: "100vh",
+        height: "calc(var(--vh, 1vh) * 100)",
+        overflow: "hidden",
       }}
     >
-      <Card
+      {/* App-like Header */}
+      <AppBar
+        position="static"
+        elevation={0}
         sx={{
-          width: "100%",
-          maxWidth: { xs: "100%", sm: 500 },
-          background: "rgba(255, 255, 255, 0.05)",
+          backgroundColor: "rgba(0, 30, 60, 0.9)",
           backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
-          borderRadius: { xs: 2, sm: 4 },
+          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
+        <Toolbar sx={{ minHeight: 56 }}>
+          {activeStep > 0 ? (
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={handleBack}
+              sx={{ mr: 2 }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+          ) : (
+            <Box sx={{ width: 48 }} />
+          )}
+
           <Typography
-            variant="h4"
+            variant="h6"
             sx={{
+              flex: 1,
               textAlign: "center",
-              color: "white",
-              fontWeight: 700,
-              mb: 1,
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontWeight: 600,
               background: "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
           >
-            Visitor Registration
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              textAlign: "center",
-              color: "rgba(255, 255, 255, 0.6)",
-              mb: 4,
-              fontSize: { xs: "0.8rem", sm: "0.875rem" },
-            }}
-          >
-            Welcome! Please complete the registration process
+            {activeStep === 0 && "Phone Verification"}
+            {activeStep === 1 && "Take Photo"}
+            {activeStep === 2 && "Visit Purpose"}
+            {activeStep === 3 && "Personal Details"}
+            {activeStep === 4 && "Meeting Info"}
+            {activeStep === 5 && "Review & Submit"}
           </Typography>
 
-          {/* Stepper */}
-          <Box sx={{ mb: 4 }}>
-            <Stepper
-              activeStep={activeStep}
-              alternativeLabel
-              sx={{ display: { xs: "none", sm: "flex" } }}
-            >
-              {STEPS.map((label) => (
-                <Step key={label}>
-                  <StepLabel sx={{ color: "white" }}>{label}</StepLabel>
-                </Step>
-              ))}
-            </Stepper>
+          <IconButton edge="end" color="inherit" onClick={handleClose}>
+            <CloseIcon />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+
+      {/* Progress Bar */}
+      <Box sx={{ px: 2, py: 1, backgroundColor: "rgba(0, 0, 0, 0.2)" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {STEPS.map((_, index) => (
             <Box
+              key={index}
               sx={{
-                display: { xs: "flex", sm: "none" },
-                justifyContent: "center",
-                gap: 1,
-                mb: 3,
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor:
+                  index <= activeStep
+                    ? index === activeStep
+                      ? "#2196f3"
+                      : "#4caf50"
+                    : "rgba(255, 255, 255, 0.1)",
+                transition: "all 0.3s ease",
               }}
-            >
-              {STEPS.map((_, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor:
-                      index === activeStep
-                        ? "#2196f3"
-                        : index < activeStep
-                        ? "#4caf50"
-                        : "rgba(255, 255, 255, 0.3)",
-                  }}
-                />
-              ))}
-            </Box>
-          </Box>
+            />
+          ))}
+        </Box>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            textAlign: "center",
+            mt: 0.5,
+            color: "rgba(255, 255, 255, 0.6)",
+            fontSize: "0.7rem",
+          }}
+        >
+          Step {activeStep + 1} of {STEPS.length}
+        </Typography>
+      </Box>
 
-          {/* Error Message */}
-          {errorMessage && (
-            <Fade in>
-              <Alert
-                severity="error"
-                sx={{ mb: 2 }}
-                onClose={() => setErrorMessage("")}
-              >
-                {errorMessage}
-              </Alert>
-            </Fade>
-          )}
-
-          {/* Step 0: Phone Verification */}
-          {activeStep === 0 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <PhoneIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Verify Your Phone
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    {!formData.otpSent
-                      ? "Enter your phone number to receive OTP"
-                      : "Enter the OTP sent to your phone"}
-                  </Typography>
-                </Box>
-
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  value={formData.phone}
-                  onChange={handlePhoneChange}
-                  placeholder="Enter 10 digit phone number"
-                  disabled={formData.verified || formData.otpSent}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PhoneIcon sx={{ color: "#2196f3" }} />
-                      </InputAdornment>
-                    ),
-                    endAdornment: formData.verified && (
-                      <CheckCircleIcon sx={{ color: "#4caf50" }} />
-                    ),
-                  }}
+      {/* Main Content */}
+      <Box
+        sx={{
+          flex: 1,
+          overflow: "auto",
+          WebkitOverflowScrolling: "touch",
+          p: { xs: 2, sm: 3 },
+          "&::-webkit-scrollbar": {
+            display: "none",
+          },
+        }}
+      >
+        <Card
+          sx={{
+            width: "100%",
+            maxWidth: 600,
+            margin: "0 auto",
+            background: "rgba(255, 255, 255, 0.05)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+            borderRadius: { xs: 2, sm: 3 },
+          }}
+        >
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            {/* Error Message */}
+            {errorMessage && (
+              <Fade in>
+                <Alert
+                  severity="error"
                   sx={{
                     mb: 2,
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                      "&.Mui-focused fieldset": { borderColor: "#2196f3" },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "rgba(255, 255, 255, 0.7)",
-                    },
+                    borderRadius: 2,
+                    backgroundColor: "rgba(244, 67, 54, 0.1)",
+                    color: "#ff6b6b",
                   }}
-                />
+                  onClose={() => setErrorMessage("")}
+                >
+                  {errorMessage}
+                </Alert>
+              </Fade>
+            )}
 
-                {!formData.otpSent && !formData.verified && formData.phone && (
-                  <Button
+            {/* Step 0: Phone Verification */}
+            {activeStep === 0 && (
+              <Zoom in timeout={500}>
+                <Box>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <PhoneIcon
+                      sx={{
+                        fontSize: { xs: 48, sm: 60 },
+                        color: "#2196f3",
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Verify Your Phone
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {!formData.otpSent
+                        ? "Enter your phone number to receive OTP"
+                        : "Enter the OTP sent to your phone"}
+                    </Typography>
+                  </Box>
+
+                  <TextField
                     fullWidth
-                    variant="contained"
-                    onClick={handleSendOtp}
-                    disabled={isSendingOtp || formData.phone.length < 10}
-                    sx={{
-                      mb: 2,
-                      background:
-                        "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                      color: "white",
-                      p: 1.5,
-                      fontWeight: 600,
-                      "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                      },
-                    }}
-                  >
-                    {isSendingOtp ? "Sending OTP..." : "Send OTP"}
-                  </Button>
-                )}
-
-                {formData.otpSent && !formData.verified && (
-                  <Fade in>
-                    <Box>
-                      <TextField
-                        fullWidth
-                        label="Enter OTP"
-                        value={formData.otp}
-                        onChange={handleOtpChange}
-                        placeholder="Enter 4-digit code"
-                        inputProps={{ maxLength: 4 }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SecurityIcon sx={{ color: "#2196f3" }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                        sx={{
-                          mb: 2,
-                          "& .MuiOutlinedInput-root": {
-                            backgroundColor: "rgba(255, 255, 255, 0.05)",
-                            color: "white",
-                            "& fieldset": {
-                              borderColor: "rgba(255, 255, 255, 0.2)",
-                            },
-                            "&:hover fieldset": {
-                              borderColor: "rgba(33, 150, 243, 0.5)",
-                            },
-                          },
-                        }}
-                      />
-
-                      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-                        <Button
-                          fullWidth
-                          variant="contained"
-                          onClick={handleVerifyOtp}
-                          disabled={isVerifying || formData.otp.length !== 4}
-                          sx={{
-                            flex: 2,
-                            background:
-                              "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
-                            color: "white",
-                            p: 1.5,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {isVerifying ? "Verifying..." : "Verify OTP"}
-                        </Button>
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          onClick={handleResendOtp}
-                          disabled={resendCountdown > 0 || isSendingOtp}
-                          startIcon={<RefreshIcon />}
-                          sx={{
-                            flex: 1,
-                            borderColor: "rgba(33, 150, 243, 0.5)",
-                            color:
-                              resendCountdown > 0
-                                ? "rgba(255, 255, 255, 0.5)"
-                                : "#2196f3",
-                          }}
-                        >
-                          {resendCountdown > 0
-                            ? `${resendCountdown}s`
-                            : "Resend"}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Fade>
-                )}
-
-                {formData.verified && (
-                  <Fade in>
-                    <Box>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          mb: 2,
-                          background: "rgba(76, 175, 80, 0.1)",
-                          border: "1px solid rgba(76, 175, 80, 0.3)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 2,
-                        }}
-                      >
+                    label="Phone Number"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    placeholder="Enter 10 digit phone number"
+                    disabled={formData.verified || formData.otpSent}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <PhoneIcon sx={{ color: "#2196f3" }} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: formData.verified && (
                         <CheckCircleIcon sx={{ color: "#4caf50" }} />
-                        <Box>
-                          <Typography
-                            sx={{ color: "#4caf50", fontWeight: 600 }}
-                          >
-                            Phone Verified!
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                          >
-                            Please accept terms to continue
-                          </Typography>
-                        </Box>
-                      </Paper>
-
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={formData.termsAccepted}
-                            onChange={handleTermsChange}
-                            sx={{
-                              color: "rgba(255, 255, 255, 0.5)",
-                              "&.Mui-checked": { color: "#2196f3" },
-                            }}
-                          />
-                        }
-                        label={
-                          <Typography
-                            sx={{ color: "rgba(255, 255, 255, 0.7)" }}
-                          >
-                            I accept the terms and conditions
-                          </Typography>
-                        }
-                      />
-                    </Box>
-                  </Fade>
-                )}
-              </Box>
-            </Zoom>
-          )}
-
-          {/* Step 1: Photo Upload */}
-          {activeStep === 1 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <CameraAltIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Upload Your Photo
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    {showCamera
-                      ? "Position yourself and click capture"
-                      : "Take a photo or upload from your device"}
-                  </Typography>
-                </Box>
-
-                {showCamera ? (
-                  <CameraComponent
-                    onCapture={handleCapturePhoto}
-                    onCancel={handleCancelCamera}
-                  />
-                ) : (
-                  <>
-                    {!formData.photoPreview ? (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: 2,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 200,
-                            height: 200,
-                            borderRadius: "50%",
-                            border: "3px dashed #2196f3",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            background: "rgba(33, 150, 243, 0.1)",
-                            "&:hover": {
-                              background: "rgba(33, 150, 243, 0.2)",
-                            },
-                          }}
-                          onClick={handleStartCamera}
-                        >
-                          <CameraAltIcon
-                            sx={{ fontSize: 60, color: "#2196f3" }}
-                          />
-                        </Box>
-
-                        <Typography
-                          sx={{ color: "white", textAlign: "center" }}
-                        >
-                          Click to take a photo with camera
-                        </Typography>
-
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            width: "100%",
-                            my: 2,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              flex: 1,
-                              height: 1,
-                              background: "rgba(255, 255, 255, 0.2)",
-                            }}
-                          />
-                          <Typography
-                            sx={{ px: 2, color: "rgba(255, 255, 255, 0.6)" }}
-                          >
-                            OR
-                          </Typography>
-                          <Box
-                            sx={{
-                              flex: 1,
-                              height: 1,
-                              background: "rgba(255, 255, 255, 0.2)",
-                            }}
-                          />
-                        </Box>
-
-                        <Button
-                          fullWidth
-                          variant="outlined"
-                          startIcon={<CloudUploadIcon />}
-                          onClick={() => fileInputRef.current.click()}
-                          sx={{
-                            color: "#2196f3",
-                            borderColor: "rgba(33, 150, 243, 0.5)",
-                            p: 1.5,
-                            "&:hover": {
-                              borderColor: "#2196f3",
-                              background: "rgba(33, 150, 243, 0.1)",
-                            },
-                          }}
-                        >
-                          Upload from Device
-                        </Button>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          ref={fileInputRef}
-                          style={{ display: "none" }}
-                          onChange={handleFileUpload}
-                        />
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: 3,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 200,
-                            height: 200,
-                            borderRadius: "50%",
-                            overflow: "hidden",
-                            border: "3px solid #2196f3",
-                            position: "relative",
-                          }}
-                        >
-                          <img
-                            src={formData.photoPreview}
-                            alt="Preview"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                          <CheckCircleIcon
-                            sx={{
-                              position: "absolute",
-                              bottom: 8,
-                              right: 8,
-                              color: "#4caf50",
-                              bgcolor: "white",
-                              borderRadius: "50%",
-                              fontSize: 30,
-                            }}
-                          />
-                        </Box>
-
-                        <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
-                          <Button
-                            fullWidth
-                            variant="outlined"
-                            startIcon={<DeleteOutlineIcon />}
-                            onClick={deletePhoto}
-                            sx={{
-                              color: "#f44336",
-                              borderColor: "#f44336",
-                              "&:hover": {
-                                background: "rgba(244, 67, 54, 0.1)",
-                              },
-                            }}
-                          >
-                            Retake
-                          </Button>
-                          <Button
-                            fullWidth
-                            variant="contained"
-                            onClick={handlePhotoContinue}
-                            disabled={isUploadingSelfie}
-                            sx={{
-                              background: isUploadingSelfie
-                                ? "rgba(33, 150, 243, 0.5)"
-                                : "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                              color: "white",
-                              "&:hover": {
-                                background: isUploadingSelfie
-                                  ? "rgba(33, 150, 243, 0.5)"
-                                  : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                              },
-                            }}
-                          >
-                            {isUploadingSelfie ? "Uploading..." : "Continue"}
-                          </Button>
-                        </Box>
-                      </Box>
-                    )}
-                  </>
-                )}
-              </Box>
-            </Zoom>
-          )}
-
-          {/* Step 2: Purpose Selection */}
-          {activeStep === 2 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <BusinessCenterIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Purpose of Visit
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Select the reason for your visit today
-                  </Typography>
-                </Box>
-
-                <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                  {PURPOSES.map((purpose) => (
-                    <Grid item xs={6} key={purpose.id}>
-                      <Paper
-                        onClick={() => handlePurposeSelect(purpose.id)}
-                        sx={{
-                          p: { xs: 1.5, sm: 2.5 },
-                          textAlign: "center",
-                          cursor: "pointer",
-                          background:
-                            formData.purpose === purpose.id
-                              ? "linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(3, 169, 244, 0.2) 100%)"
-                              : "rgba(255, 255, 255, 0.05)",
-                          border:
-                            formData.purpose === purpose.id
-                              ? "2px solid #2196f3"
-                              : "1px solid rgba(255, 255, 255, 0.1)",
-                          transition: "all 0.3s ease",
-                          "&:hover": {
-                            background:
-                              "linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(3, 169, 244, 0.1) 100%)",
-                            transform: "translateY(-4px)",
-                          },
-                        }}
-                      >
-                        <Typography
-                          sx={{ fontSize: { xs: 32, sm: 40 }, mb: 1 }}
-                        >
-                          {purpose.icon}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: "white",
-                            fontWeight:
-                              formData.purpose === purpose.id ? 600 : 400,
-                          }}
-                        >
-                          {purpose.label}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
-            </Zoom>
-          )}
-
-          {/* Step 3: Personal Details */}
-          {activeStep === 3 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <PersonIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Personal Details
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Please provide your information
-                  </Typography>
-                </Box>
-
-                <Stack spacing={2}>
-                  <TextField
-                    fullWidth
-                    label="Full Name"
-                    value={formData.fullName}
-                    onChange={handleChange("fullName")}
-                    placeholder="Enter Full Name"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
                       ),
                     }}
                     sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                      },
-                    }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Company"
-                    value={formData.company}
-                    onChange={handleChange("company")}
-                    placeholder="Enter Your Company Name"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <BusinessIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                      },
-                    }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Government ID"
-                    value={formData.governmentId}
-                    onChange={handleChange("governmentId")}
-                    placeholder="Enter Any Government ID Number"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <BadgeIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                      },
-                    }}
-                  />
-
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => setActiveStep(4)}
-                    disabled={!canProceedToMeetingInfo}
-                    endIcon={<ArrowForwardIcon />}
-                    sx={{
-                      mt: 2,
-                      background:
-                        "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                      color: "white",
-                      p: 1.5,
-                      fontWeight: 600,
-                      "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                      },
-                    }}
-                  >
-                    Continue
-                  </Button>
-                </Stack>
-              </Box>
-            </Zoom>
-          )}
-
-          {/* Step 4: Meeting Information */}
-          {activeStep === 4 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <MeetingRoomIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
                       mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Meeting Information
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Who are you here to meet?
-                  </Typography>
-                </Box>
-
-                <Stack spacing={2}>
-                  <TextField
-                    fullWidth
-                    label="Person to Meet"
-                    value={formData.personToMeet}
-                    onChange={handleChange("personToMeet")}
-                    placeholder="Enter Person Name You are Meeting"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
                       "& .MuiOutlinedInput-root": {
                         backgroundColor: "rgba(255, 255, 255, 0.05)",
                         color: "white",
+                        fontSize: "1rem",
                         "& fieldset": {
                           borderColor: "rgba(255, 255, 255, 0.2)",
                         },
@@ -1404,293 +949,998 @@ export default function VisitorForm() {
                       },
                       "& .MuiInputLabel-root": {
                         color: "rgba(255, 255, 255, 0.7)",
-                        "&.Mui-focused": { color: "#2196f3" },
+                        fontSize: "0.95rem",
                       },
                     }}
                   />
 
-                  <FormControl fullWidth>
-                    <InputLabel
-                      sx={{
-                        color: "rgba(255, 255, 255, 0.7)",
-                        "&.Mui-focused": { color: "#2196f3" },
-                      }}
-                    >
-                      Department
-                    </InputLabel>
-                    <Select
-                      value={formData.department}
-                      label="Department"
-                      onChange={handleChange("department")}
-                      sx={{
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2196f3",
-                        },
-                        "& .MuiSelect-icon": {
-                          color: "rgba(255, 255, 255, 0.7)",
-                        },
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
+                  {!formData.otpSent &&
+                    !formData.verified &&
+                    formData.phone && (
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={handleSendOtp}
+                        disabled={isSendingOtp || formData.phone.length < 10}
+                        sx={{
+                          mb: 2,
+                          background:
+                            "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                          color: "white",
+                          p: 1.5,
+                          fontWeight: 600,
+                          fontSize: "1rem",
+                          "&:hover": {
                             background:
-                              "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
-                            backdropFilter: "blur(20px)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                            borderRadius: "8px",
-                            marginTop: "4px",
-                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
-                            "& .MuiMenuItem-root": {
-                              color: "rgba(255, 255, 255, 0.9)",
-                              backgroundColor: "transparent",
-                              "&:hover": {
-                                backgroundColor: "rgba(33, 150, 243, 0.2)",
+                              "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                          },
+                        }}
+                      >
+                        {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+                      </Button>
+                    )}
+
+                  {formData.otpSent && !formData.verified && (
+                    <Fade in>
+                      <Box>
+                        <TextField
+                          fullWidth
+                          label="Enter OTP"
+                          value={formData.otp}
+                          onChange={handleOtpChange}
+                          placeholder="Enter 4-digit code"
+                          inputProps={{ maxLength: 4 }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SecurityIcon sx={{ color: "#2196f3" }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            mb: 2,
+                            "& .MuiOutlinedInput-root": {
+                              backgroundColor: "rgba(255, 255, 255, 0.05)",
+                              color: "white",
+                              fontSize: "1rem",
+                              "& fieldset": {
+                                borderColor: "rgba(255, 255, 255, 0.2)",
                               },
-                              "&.Mui-selected": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
-                                "&:hover": {
-                                  backgroundColor: "rgba(33, 150, 243, 0.4)",
-                                },
-                              },
-                              "&.Mui-focusVisible": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
+                              "&:hover fieldset": {
+                                borderColor: "rgba(33, 150, 243, 0.5)",
                               },
                             },
-                          },
-                        },
+                            "& .MuiInputLabel-root": {
+                              color: "rgba(255, 255, 255, 0.7)",
+                              fontSize: "0.95rem",
+                            },
+                          }}
+                        />
+
+                        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            onClick={handleVerifyOtp}
+                            disabled={isVerifying || formData.otp.length !== 4}
+                            sx={{
+                              flex: 2,
+                              background:
+                                "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                              color: "white",
+                              p: 1.5,
+                              fontWeight: 600,
+                              fontSize: "1rem",
+                            }}
+                          >
+                            {isVerifying ? "Verifying..." : "Verify OTP"}
+                          </Button>
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            onClick={handleResendOtp}
+                            disabled={resendCountdown > 0 || isSendingOtp}
+                            startIcon={<RefreshIcon />}
+                            sx={{
+                              flex: 1,
+                              borderColor: "rgba(33, 150, 243, 0.5)",
+                              color:
+                                resendCountdown > 0
+                                  ? "rgba(255, 255, 255, 0.5)"
+                                  : "#2196f3",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            {resendCountdown > 0
+                              ? `${resendCountdown}s`
+                              : "Resend"}
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Fade>
+                  )}
+
+                  {formData.verified && (
+                    <Fade in>
+                      <Box>
+                        <Paper
+                          sx={{
+                            p: 2,
+                            mb: 2,
+                            background: "rgba(76, 175, 80, 0.1)",
+                            border: "1px solid rgba(76, 175, 80, 0.3)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                          }}
+                        >
+                          <CheckCircleIcon sx={{ color: "#4caf50" }} />
+                          <Box>
+                            <Typography
+                              sx={{
+                                color: "#4caf50",
+                                fontWeight: 600,
+                                fontSize: "1rem",
+                              }}
+                            >
+                              Phone Verified!
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "rgba(255, 255, 255, 0.6)",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              Please accept terms to continue
+                            </Typography>
+                          </Box>
+                        </Paper>
+
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.termsAccepted}
+                              onChange={handleTermsChange}
+                              sx={{
+                                color: "rgba(255, 255, 255, 0.5)",
+                                "&.Mui-checked": { color: "#2196f3" },
+                              }}
+                            />
+                          }
+                          label={
+                            <Typography
+                              sx={{
+                                color: "rgba(255, 255, 255, 0.7)",
+                                fontSize: "0.95rem",
+                              }}
+                            >
+                              I accept the terms and conditions
+                            </Typography>
+                          }
+                        />
+                      </Box>
+                    </Fade>
+                  )}
+                </Box>
+              </Zoom>
+            )}
+
+            {/* Step 1: Photo Upload */}
+            {activeStep === 1 && (
+              <Zoom in timeout={500}>
+                <Box>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <CameraAltIcon
+                      sx={{
+                        fontSize: { xs: 48, sm: 60 },
+                        color: "#2196f3",
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Upload Your Photo
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.9rem",
                       }}
                     >
-                      {DEPARTMENTS.map((dept) => (
-                        <MenuItem
-                          key={dept}
-                          value={dept}
+                      {showCamera
+                        ? "Position yourself and click capture"
+                        : "Take a photo or upload from your device"}
+                    </Typography>
+                  </Box>
+
+                  {showCamera ? (
+                    <CameraComponent
+                      onCapture={handleCapturePhoto}
+                      onCancel={handleCancelCamera}
+                    />
+                  ) : (
+                    <>
+                      {!formData.photoPreview ? (
+                        <Box
                           sx={{
-                            color: "rgba(255, 255, 255, 0.9)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 2,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 200,
+                              height: 200,
+                              borderRadius: "50%",
+                              border: "3px dashed #2196f3",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              background: "rgba(33, 150, 243, 0.1)",
+                              "&:hover": {
+                                background: "rgba(33, 150, 243, 0.2)",
+                              },
+                            }}
+                            onClick={handleStartCamera}
+                          >
+                            <CameraAltIcon
+                              sx={{ fontSize: 60, color: "#2196f3" }}
+                            />
+                          </Box>
+
+                          <Typography
+                            sx={{
+                              color: "white",
+                              textAlign: "center",
+                              fontSize: "0.95rem",
+                            }}
+                          >
+                            Click to take a photo with camera
+                          </Typography>
+
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              width: "100%",
+                              my: 2,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                flex: 1,
+                                height: 1,
+                                background: "rgba(255, 255, 255, 0.2)",
+                              }}
+                            />
+                            <Typography
+                              sx={{
+                                px: 2,
+                                color: "rgba(255, 255, 255, 0.6)",
+                                fontSize: "0.9rem",
+                              }}
+                            >
+                              OR
+                            </Typography>
+                            <Box
+                              sx={{
+                                flex: 1,
+                                height: 1,
+                                background: "rgba(255, 255, 255, 0.2)",
+                              }}
+                            />
+                          </Box>
+
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            startIcon={<CloudUploadIcon />}
+                            onClick={() => fileInputRef.current.click()}
+                            sx={{
+                              color: "#2196f3",
+                              borderColor: "rgba(33, 150, 243, 0.5)",
+                              p: 1.5,
+                              fontSize: "1rem",
+                              "&:hover": {
+                                borderColor: "#2196f3",
+                                background: "rgba(33, 150, 243, 0.1)",
+                              },
+                            }}
+                          >
+                            Upload from Device
+                          </Button>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            ref={fileInputRef}
+                            style={{ display: "none" }}
+                            onChange={handleFileUpload}
+                          />
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 3,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 200,
+                              height: 200,
+                              borderRadius: "50%",
+                              overflow: "hidden",
+                              border: "3px solid #2196f3",
+                              position: "relative",
+                            }}
+                          >
+                            <img
+                              src={formData.photoPreview}
+                              alt="Preview"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                            <CheckCircleIcon
+                              sx={{
+                                position: "absolute",
+                                bottom: 8,
+                                right: 8,
+                                color: "#4caf50",
+                                bgcolor: "white",
+                                borderRadius: "50%",
+                                fontSize: 30,
+                              }}
+                            />
+                          </Box>
+
+                          <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              startIcon={<DeleteOutlineIcon />}
+                              onClick={deletePhoto}
+                              sx={{
+                                color: "#f44336",
+                                borderColor: "#f44336",
+                                fontSize: "0.95rem",
+                                "&:hover": {
+                                  background: "rgba(244, 67, 54, 0.1)",
+                                },
+                              }}
+                            >
+                              Retake
+                            </Button>
+                            <Button
+                              fullWidth
+                              variant="contained"
+                              onClick={handlePhotoContinue}
+                              disabled={isUploadingSelfie}
+                              sx={{
+                                background: isUploadingSelfie
+                                  ? "rgba(33, 150, 243, 0.5)"
+                                  : "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                                color: "white",
+                                fontSize: "1rem",
+                                "&:hover": {
+                                  background: isUploadingSelfie
+                                    ? "rgba(33, 150, 243, 0.5)"
+                                    : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                                },
+                              }}
+                            >
+                              {isUploadingSelfie ? "Uploading..." : "Continue"}
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
+                    </>
+                  )}
+                </Box>
+              </Zoom>
+            )}
+
+            {/* Step 2: Purpose Selection */}
+            {activeStep === 2 && (
+              <Zoom in timeout={500}>
+                <Box>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <BusinessCenterIcon
+                      sx={{
+                        fontSize: { xs: 48, sm: 60 },
+                        color: "#2196f3",
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Purpose of Visit
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      Select the reason for your visit today
+                    </Typography>
+                  </Box>
+
+                  <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+                    {PURPOSES.map((purpose) => (
+                      <Grid item xs={6} key={purpose.id}>
+                        <Paper
+                          onClick={() => handlePurposeSelect(purpose.id)}
+                          sx={{
+                            p: { xs: 1.5, sm: 2.5 },
+                            textAlign: "center",
+                            cursor: "pointer",
+                            background:
+                              formData.purpose === purpose.id
+                                ? "linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(3, 169, 244, 0.2) 100%)"
+                                : "rgba(255, 255, 255, 0.05)",
+                            border:
+                              formData.purpose === purpose.id
+                                ? "2px solid #2196f3"
+                                : "1px solid rgba(255, 255, 255, 0.1)",
+                            transition: "all 0.3s ease",
                             "&:hover": {
-                              backgroundColor: "rgba(33, 150, 243, 0.2)",
+                              background:
+                                "linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(3, 169, 244, 0.1) 100%)",
+                              transform: "translateY(-4px)",
                             },
                           }}
                         >
-                          {dept}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                          <Typography
+                            sx={{ fontSize: { xs: 32, sm: 40 }, mb: 1 }}
+                          >
+                            {purpose.icon}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: "white",
+                              fontWeight:
+                                formData.purpose === purpose.id ? 600 : 400,
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            {purpose.label}
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+              </Zoom>
+            )}
 
-                  <FormControl fullWidth>
-                    <InputLabel
+            {/* Step 3: Personal Details */}
+            {activeStep === 3 && (
+              <Zoom in timeout={500}>
+                <Box>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <PersonIcon
                       sx={{
-                        color: "rgba(255, 255, 255, 0.7)",
-                        "&.Mui-focused": { color: "#2196f3" },
+                        fontSize: { xs: 48, sm: 60 },
+                        color: "#2196f3",
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Personal Details
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.9rem",
                       }}
                     >
-                      Visit Duration
-                    </InputLabel>
-                    <Select
-                      value={formData.visitDuration}
-                      label="Visit Duration"
-                      onChange={handleChange("visitDuration")}
+                      Please provide your information
+                    </Typography>
+                  </Box>
+
+                  <Stack spacing={2}>
+                    <TextField
+                      fullWidth
+                      label="Full Name"
+                      value={formData.fullName}
+                      onChange={handleChange("fullName")}
+                      placeholder="Enter Full Name"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon sx={{ color: "#2196f3" }} />
+                          </InputAdornment>
+                        ),
+                      }}
                       sx={{
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          fontSize: "1rem",
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "rgba(33, 150, 243, 0.5)",
+                          },
                         },
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2196f3",
-                        },
-                        "& .MuiSelect-icon": {
+                        "& .MuiInputLabel-root": {
                           color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.95rem",
                         },
                       }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
-                            background:
-                              "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
-                            backdropFilter: "blur(20px)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                            borderRadius: "8px",
-                            marginTop: "4px",
-                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
-                            "& .MuiMenuItem-root": {
-                              color: "rgba(255, 255, 255, 0.9)",
-                              backgroundColor: "transparent",
-                              "&:hover": {
-                                backgroundColor: "rgba(33, 150, 243, 0.2)",
-                              },
-                              "&.Mui-selected": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="Company"
+                      value={formData.company}
+                      onChange={handleChange("company")}
+                      placeholder="Enter Your Company Name"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon sx={{ color: "#2196f3" }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          fontSize: "1rem",
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "rgba(33, 150, 243, 0.5)",
+                          },
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.95rem",
+                        },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      label="Government ID"
+                      value={formData.governmentId}
+                      onChange={handleChange("governmentId")}
+                      placeholder="Enter Any Government ID Number"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BadgeIcon sx={{ color: "#2196f3" }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          fontSize: "1rem",
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "rgba(33, 150, 243, 0.5)",
+                          },
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.95rem",
+                        },
+                      }}
+                    />
+
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={() => setActiveStep(4)}
+                      disabled={!canProceedToMeetingInfo}
+                      endIcon={<ArrowForwardIcon />}
+                      sx={{
+                        mt: 2,
+                        background:
+                          "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                        color: "white",
+                        p: 1.5,
+                        fontWeight: 600,
+                        fontSize: "1rem",
+                        "&:hover": {
+                          background:
+                            "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                        },
+                      }}
+                    >
+                      Continue
+                    </Button>
+                  </Stack>
+                </Box>
+              </Zoom>
+            )}
+
+            {/* Step 4: Meeting Information */}
+            {activeStep === 4 && (
+              <Zoom in timeout={500}>
+                <Box>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <MeetingRoomIcon
+                      sx={{
+                        fontSize: { xs: 48, sm: 60 },
+                        color: "#2196f3",
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Meeting Information
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      Who are you here to meet?
+                    </Typography>
+                  </Box>
+
+                  <Stack spacing={2}>
+                    <TextField
+                      fullWidth
+                      label="Person to Meet"
+                      value={formData.personToMeet}
+                      onChange={handleChange("personToMeet")}
+                      placeholder="Enter Person Name You are Meeting"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon sx={{ color: "#2196f3" }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          fontSize: "1rem",
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "rgba(33, 150, 243, 0.5)",
+                          },
+                          "&.Mui-focused fieldset": { borderColor: "#2196f3" },
+                        },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.95rem",
+                          "&.Mui-focused": { color: "#2196f3" },
+                        },
+                      }}
+                    />
+
+                    <FormControl fullWidth>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.95rem",
+                          "&.Mui-focused": { color: "#2196f3" },
+                        }}
+                      >
+                        Department
+                      </InputLabel>
+                      <Select
+                        value={formData.department}
+                        label="Department"
+                        onChange={handleChange("department")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          fontSize: "1rem",
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(33, 150, 243, 0.5)",
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "#2196f3",
+                          },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "8px",
+                              marginTop: "4px",
+                              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                backgroundColor: "transparent",
+                                fontSize: "0.95rem",
                                 "&:hover": {
-                                  backgroundColor: "rgba(33, 150, 243, 0.4)",
+                                  backgroundColor: "rgba(33, 150, 243, 0.2)",
                                 },
-                              },
-                              "&.Mui-focusVisible": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
+                                "&.Mui-selected": {
+                                  backgroundColor: "rgba(33, 150, 243, 0.3)",
+                                  "&:hover": {
+                                    backgroundColor: "rgba(33, 150, 243, 0.4)",
+                                  },
+                                },
+                                "&.Mui-focusVisible": {
+                                  backgroundColor: "rgba(33, 150, 243, 0.3)",
+                                },
                               },
                             },
                           },
+                        }}
+                      >
+                        {DEPARTMENTS.map((dept) => (
+                          <MenuItem
+                            key={dept}
+                            value={dept}
+                            sx={{
+                              color: "rgba(255, 255, 255, 0.9)",
+                              fontSize: "0.95rem",
+                              "&:hover": {
+                                backgroundColor: "rgba(33, 150, 243, 0.2)",
+                              },
+                            }}
+                          >
+                            {dept}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.95rem",
+                          "&.Mui-focused": { color: "#2196f3" },
+                        }}
+                      >
+                        Visit Duration
+                      </InputLabel>
+                      <Select
+                        value={formData.visitDuration}
+                        label="Visit Duration"
+                        onChange={handleChange("visitDuration")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          fontSize: "1rem",
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(33, 150, 243, 0.5)",
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "#2196f3",
+                          },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "8px",
+                              marginTop: "4px",
+                              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                backgroundColor: "transparent",
+                                fontSize: "0.95rem",
+                                "&:hover": {
+                                  backgroundColor: "rgba(33, 150, 243, 0.2)",
+                                },
+                                "&.Mui-selected": {
+                                  backgroundColor: "rgba(33, 150, 243, 0.3)",
+                                  "&:hover": {
+                                    backgroundColor: "rgba(33, 150, 243, 0.4)",
+                                  },
+                                },
+                                "&.Mui-focusVisible": {
+                                  backgroundColor: "rgba(33, 150, 243, 0.3)",
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        <MenuItem value="1">1 Day</MenuItem>
+                        <MenuItem value="2">2 Days</MenuItem>
+                        <MenuItem value="3">3 Days</MenuItem>
+                        <MenuItem value="5">5 Days</MenuItem>
+                        <MenuItem value="7">1 Week</MenuItem>
+                        <MenuItem value="14">2 Weeks</MenuItem>
+                        <MenuItem value="30">1 Month</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={() => setActiveStep(5)}
+                      disabled={!canProceedToReview}
+                      endIcon={<ArrowForwardIcon />}
+                      sx={{
+                        mt: 2,
+                        background:
+                          "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                        color: "white",
+                        p: 1.5,
+                        fontWeight: 600,
+                        fontSize: "1rem",
+                        "&:hover": {
+                          background:
+                            "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                        },
+                        "&:disabled": {
+                          background: "rgba(255, 255, 255, 0.1)",
+                          color: "rgba(255, 255, 255, 0.3)",
                         },
                       }}
                     >
-                      <MenuItem value="1">1 Day</MenuItem>
-                      <MenuItem value="2">2 Days</MenuItem>
-                      <MenuItem value="3">3 Days</MenuItem>
-                      <MenuItem value="5">5 Days</MenuItem>
-                      <MenuItem value="7">1 Week</MenuItem>
-                      <MenuItem value="14">2 Weeks</MenuItem>
-                      <MenuItem value="30">1 Month</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => setActiveStep(5)}
-                    disabled={!canProceedToReview}
-                    endIcon={<ArrowForwardIcon />}
-                    sx={{
-                      mt: 2,
-                      background:
-                        "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                      color: "white",
-                      p: 1.5,
-                      fontWeight: 600,
-                      "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                      },
-                      "&:disabled": {
-                        background: "rgba(255, 255, 255, 0.1)",
-                        color: "rgba(255, 255, 255, 0.3)",
-                      },
-                    }}
-                  >
-                    Continue to Review
-                  </Button>
-                </Stack>
-              </Box>
-            </Zoom>
-          )}
-
-          {/* Step 5: Review */}
-          {activeStep === 5 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <CheckCircleIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#4caf50",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Review Your Information
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Please verify all details before submitting
-                  </Typography>
+                      Continue to Review
+                    </Button>
+                  </Stack>
                 </Box>
+              </Zoom>
+            )}
 
-                <Stack spacing={2}>
-                  <ReviewItem
-                    label="Phone Number"
-                    value={formData.phone}
-                    onEdit={() => handleEdit(0)}
-                  />
-                  <ReviewItem
-                    label="Photo"
-                    value={selfieResponse ? "Uploaded ✓" : "Not uploaded"}
-                    subValue={
-                      selfieResponse
-                        ? `Visitor ID: ${selfieResponse.visitorId}`
-                        : undefined
-                    }
-                    onEdit={() => handleEdit(1)}
-                    uploadedPhoto={uploadedPhotoUrl}
-                  />
-                  <ReviewItem
-                    label="Purpose of Visit"
-                    value={selectedPurpose?.label}
-                    onEdit={() => handleEdit(2)}
-                  />
-                  <ReviewItem
-                    label="Personal Details"
-                    value={formData.fullName}
-                    subValue={`${formData.company} | ID: ${formData.governmentId}`}
-                    onEdit={() => handleEdit(3)}
-                  />
-                  <ReviewItem
-                    label="Meeting Details"
-                    value={formData.personToMeet}
-                    subValue={`${formData.department} | Duration: ${
-                      formData.visitDuration
-                    } ${formData.visitDuration === "1" ? "Day" : "Days"}`}
-                    onEdit={() => handleEdit(4)}
-                  />
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !selfieResponse}
-                    sx={{
-                      mt: 3,
-                      background:
-                        isSubmitting || !selfieResponse
-                          ? "rgba(33, 150, 243, 0.5)"
-                          : "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
-                      color: "white",
-                      p: 1.5,
-                      fontWeight: 600,
-                      "&:hover": {
+            {/* Step 5: Review */}
+            {activeStep === 5 && (
+              <Zoom in timeout={500}>
+                <Box>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <CheckCircleIcon
+                      sx={{
+                        fontSize: { xs: 48, sm: 60 },
+                        color: "#4caf50",
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Review Your Information
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      Please verify all details before submitting
+                    </Typography>
+                  </Box>
+
+                  <Stack spacing={2}>
+                    <ReviewItem
+                      label="Phone Number"
+                      value={formData.phone}
+                      onEdit={() => handleEdit(0)}
+                    />
+                    <ReviewItem
+                      label="Photo"
+                      value={selfieResponse ? "Uploaded ✓" : "Not uploaded"}
+                      subValue={
+                        selfieResponse
+                          ? `Visitor ID: ${selfieResponse.visitorId}`
+                          : undefined
+                      }
+                      onEdit={() => handleEdit(1)}
+                      uploadedPhoto={uploadedPhotoUrl}
+                    />
+                    <ReviewItem
+                      label="Purpose of Visit"
+                      value={selectedPurpose?.label}
+                      onEdit={() => handleEdit(2)}
+                    />
+                    <ReviewItem
+                      label="Personal Details"
+                      value={formData.fullName}
+                      subValue={`${formData.company} | ID: ${formData.governmentId}`}
+                      onEdit={() => handleEdit(3)}
+                    />
+                    <ReviewItem
+                      label="Meeting Details"
+                      value={formData.personToMeet}
+                      subValue={`${formData.department} | Duration: ${
+                        formData.visitDuration
+                      } ${formData.visitDuration === "1" ? "Day" : "Days"}`}
+                      onEdit={() => handleEdit(4)}
+                    />
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={handleSubmit}
+                      disabled={isSubmitting || !selfieResponse}
+                      sx={{
+                        mt: 3,
                         background:
                           isSubmitting || !selfieResponse
                             ? "rgba(33, 150, 243, 0.5)"
-                            : "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
-                      },
-                    }}
-                  >
-                    {isSubmitting ? "Submitting..." : "Submit Registration"}
-                  </Button>
-                </Stack>
-              </Box>
-            </Zoom>
-          )}
-        </CardContent>
+                            : "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                        color: "white",
+                        p: 1.5,
+                        fontWeight: 600,
+                        fontSize: "1rem",
+                        "&:hover": {
+                          background:
+                            isSubmitting || !selfieResponse
+                              ? "rgba(33, 150, 243, 0.5)"
+                              : "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
+                        },
+                      }}
+                    >
+                      {isSubmitting ? "Submitting..." : "Submit Registration"}
+                    </Button>
+                  </Stack>
+                </Box>
+              </Zoom>
+            )}
+          </CardContent>
 
-        <Box
-          sx={{
-            textAlign: "center",
-            py: 2,
-            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ color: "rgba(255, 255, 255, 0.5)" }}
+          <Box
+            sx={{
+              textAlign: "center",
+              py: 2,
+              borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
           >
-            Powered by Midland Microfin Limited
-          </Typography>
-        </Box>
-      </Card>
+            <Typography
+              variant="caption"
+              sx={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.75rem" }}
+            >
+              Powered by Midland Microfin Limited
+            </Typography>
+          </Box>
+        </Card>
+      </Box>
     </Box>
   );
 }
@@ -1708,12 +1958,20 @@ const ReviewItem = ({ label, value, subValue, onEdit, uploadedPhoto }) => (
     }}
   >
     <Box sx={{ flex: 1 }}>
-      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
+      <Typography
+        variant="caption"
+        sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.8rem" }}
+      >
         {label}
       </Typography>
-      <Typography sx={{ color: "white", fontWeight: 500 }}>{value}</Typography>
+      <Typography sx={{ color: "white", fontWeight: 500, fontSize: "0.95rem" }}>
+        {value}
+      </Typography>
       {subValue && (
-        <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
+        <Typography
+          variant="body2"
+          sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem" }}
+        >
           {subValue}
         </Typography>
       )}
@@ -1737,7 +1995,12 @@ const ReviewItem = ({ label, value, subValue, onEdit, uploadedPhoto }) => (
           />
           <Typography
             variant="caption"
-            sx={{ color: "#2196f3", display: "block", mt: 0.5 }}
+            sx={{
+              color: "#2196f3",
+              display: "block",
+              mt: 0.5,
+              fontSize: "0.7rem",
+            }}
           >
             <Link
               href={uploadedPhoto}
