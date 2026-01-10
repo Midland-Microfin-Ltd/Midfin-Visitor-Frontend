@@ -19,10 +19,10 @@ export const loginUser = async (credentials) => {
  * @param {Object} visitorData
  * @returns {Promise}
  */
-export const submitVisitorRequest = async (visitorData) => {
+export const submitVisitorRequest = async (visitorId, visitorData) => {
   try {
     const response = await apiClient.post(
-      '/api/v1/visitor/visitor-request',
+      `/api/v1/visitor/visitor-request/${visitorId}`, 
       visitorData
     );
     return response;
@@ -161,6 +161,32 @@ export const generateVisitorPass = async ({ visitorId }) => {
     const response = await apiClient.get(
       `/api/v1/visitor/visitor-pass/${visitorId}`
     );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Submit visitor selfie
+ * @param {File} selfieFile
+ * @returns {Promise}
+ */
+export const submitVisitorSelfie = async (selfieFile) => {
+  try {
+    const formData = new FormData();
+    formData.append('selfie', selfieFile);
+
+    const response = await apiClient.post(
+      '/api/v1/visitor/visitor-selfie',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
     return response;
   } catch (error) {
     throw error;

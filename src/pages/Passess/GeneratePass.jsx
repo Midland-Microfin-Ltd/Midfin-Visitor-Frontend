@@ -20,40 +20,31 @@ import {
   InputAdornment,
   CircularProgress,
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  IconButton,
   Grid,
   Card,
-  CardContent,
-  Divider,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
 } from "@mui/material";
 import {
   Search as SearchIcon,
   Download as DownloadIcon,
   QrCode as QrCodeIcon,
-  Print as PrintIcon,
-  AccessTime as AccessTimeIcon,
-  Person as PersonIcon,
+  PersonOutline,
+  BadgeOutlined,
+  BusinessOutlined,
+  PhoneOutlined,
+  EventAvailableOutlined,
+  EventBusyOutlined,
+  VerifiedUser,
+  QrCode2,
+  Security,
   Phone as PhoneIcon,
   Badge as BadgeIcon,
+  Person as PersonIcon,
   Business as BusinessIcon,
-  Security as SecurityIcon,
   CalendarToday as CalendarTodayIcon,
-  Schedule as ScheduleIcon,
-  LocationOn as LocationOnIcon,
-  AccountBalance as AccountBalanceIcon,
-  Fingerprint as FingerprintIcon,
-  CreditCard as CreditCardIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import MiniDrawer from "../../components/MiniDrawer";
 import { useThemeContext } from "../../context/ThemeContext";
 import {
@@ -79,6 +70,7 @@ const GeneratePass = () => {
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const [passDialog, setPassDialog] = useState(false);
   const [passData, setPassData] = useState(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   const fetchApprovedVisitors = async (
     currentPage = 0,
@@ -124,8 +116,38 @@ const GeneratePass = () => {
 
       if (response.success) {
         setSelectedVisitor(visitor);
-        setPassData(response.data);
+
+        const formattedPassData = {
+          ...response.data,
+          fullName: response.data.visitorName || visitor.visitorName,
+          govtId: response.data.governmentId || "AADHAR-XXXX-XXXX-XXXX",
+          purposeOfVisit:
+            response.data.purposeOfVisit || visitor.purposeOfVisit,
+          personToMeet: response.data.personToMeet || visitor.personToMeet,
+          contactNumber: response.data.phoneNo || visitor.phoneNo,
+          validFrom:
+            response.data.validFrom ||
+            new Date().toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }),
+          validTill:
+            response.data.validUntil ||
+            new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toLocaleDateString(
+              "en-IN",
+              {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              }
+            ),
+          passNumber: `VP-${Date.now().toString().slice(-6)}`,
+        };
+
+        setPassData(formattedPassData);
         setPassDialog(true);
+        setIsVisible(true);
         showSnackbar("Visitor pass generated successfully!", "success");
       } else {
         showSnackbar(response.message || "Failed to generate pass", "error");
@@ -142,38 +164,33 @@ const GeneratePass = () => {
     setPassDialog(false);
     setSelectedVisitor(null);
     setPassData(null);
+    setIsVisible(false);
   };
 
   const downloadPassAsImage = async () => {
     try {
-      // Create a temporary div to render the card with all styles
-      const cardElement = document.getElementById("visitor-pass-card");
-
+      const cardElement = document.getElementById("premium-visitor-pass-card");
       if (!cardElement) {
         showSnackbar("Pass card not found!", "error");
         return;
       }
 
-      // Clone the card element to avoid affecting the original
       const clonedCard = cardElement.cloneNode(true);
-
-      // Apply styles for better capture
       clonedCard.style.position = "fixed";
       clonedCard.style.top = "0";
       clonedCard.style.left = "0";
       clonedCard.style.zIndex = "9999";
-      clonedCard.style.width = "380px";
       clonedCard.style.transform = "scale(1)";
-      clonedCard.style.boxShadow = "0 15px 35px rgba(12, 36, 97, 0.2)";
+      clonedCard.style.boxShadow = "0 25px 70px rgba(102, 126, 234, 0.4)";
       clonedCard.style.visibility = "visible";
       clonedCard.style.opacity = "1";
+      clonedCard.style.width = "460px";
+      clonedCard.style.maxWidth = "460px";
 
-      // Append to body
       document.body.appendChild(clonedCard);
 
-      // Create a canvas with higher resolution
       const canvas = await html2canvas(clonedCard, {
-        scale: 3, // Higher scale for better quality
+        scale: 3,
         useCORS: true,
         backgroundColor: "#ffffff",
         logging: false,
@@ -181,63 +198,21 @@ const GeneratePass = () => {
         foreignObjectRendering: true,
         imageTimeout: 0,
         removeContainer: true,
-        width: 380,
+        width: 460,
         height: clonedCard.offsetHeight,
-        windowWidth: 380,
+        windowWidth: 460,
         windowHeight: clonedCard.offsetHeight,
-        onclone: (documentClone, element) => {
-          // Ensure all styles are preserved in the clone
-          const clonedPassCard = documentClone
-            .getElementById("visitor-pass-card")
-            ?.cloneNode(true);
-          if (clonedPassCard) {
-            // Force print styles
-            const style = documentClone.createElement("style");
-            style.textContent = `
-            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-            
-            * {
-              -webkit-font-smoothing: antialiased !important;
-              -moz-osx-font-smoothing: grayscale !important;
-              font-smooth: always !important;
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            
-            body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-            }
-            
-            .MuiTypography-root {
-              font-family: 'Roboto', 'Arial', sans-serif !important;
-            }
-            
-            .MuiButton-root, .MuiChip-root {
-              background-image: none !important;
-            }
-          `;
-            documentClone.head.appendChild(style);
-          }
-        },
       });
 
-      // Remove the cloned element
       document.body.removeChild(clonedCard);
 
-      // Convert canvas to high-quality image
       const imageData = canvas.toDataURL("image/png", 1.0);
-
-      // Create a temporary link to download the image
       const link = document.createElement("a");
       link.href = imageData;
-      link.download = `visitor-pass-${
-        selectedVisitor?.visitorId || passData?.visitorId || "pass"
-      }-${new Date().toISOString().split("T")[0]}.png`;
+      link.download = `visitor-pass-${passData?.passNumber || "pass"}-${
+        new Date().toISOString().split("T")[0]
+      }.png`;
 
-      // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -259,19 +234,6 @@ const GeneratePass = () => {
       }
     }
     return initials || "?";
-  };
-
-  const formatDate = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch (error) {
-      return "Invalid Date";
-    }
   };
 
   const showSnackbar = (message, severity) => {
@@ -485,6 +447,7 @@ const GeneratePass = () => {
         </Paper>
       )}
 
+      {/* Dialog with Premium Pass Card - NO BACKGROUND */}
       <Dialog
         open={passDialog}
         onClose={closePassDialog}
@@ -494,402 +457,428 @@ const GeneratePass = () => {
           sx: {
             borderRadius: 3,
             overflow: "hidden",
-            background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-            maxWidth: 450,
+            background: "white",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+            maxWidth: 500,
           },
         }}
       >
         <DialogContent
           sx={{
-            p: 4,
+            p: 3,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            background: "transparent",
+            background: "white",
           }}
         >
-          {/* Enhanced Visitor Pass Card */}
+          {/* Card-Style Pass ONLY - No background container */}
           <Box
-            id="visitor-pass-card"
-            className="pass-card"
+            id="premium-visitor-pass-card"
             sx={{
+              maxWidth: 460,
               width: "100%",
-              maxWidth: 380,
-              borderRadius: 3,
-              overflow: "hidden",
-              boxShadow: "0 15px 35px rgba(12, 36, 97, 0.2)",
-              bgcolor: "white",
-              mb: 4,
               position: "relative",
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 5,
-                background:
-                  "linear-gradient(90deg, #0c2461 0%, #4a69bd 50%, #0c2461 100%)",
-              },
+              zIndex: 1,
+              transform: isVisible ? "translateY(0)" : "translateY(20px)",
+              opacity: isVisible ? 1 : 0,
+              transition: "all 0.5s ease",
             }}
           >
-            {/* Card Header with Gradient */}
-            <Box
+            <Card
               sx={{
-                background: "linear-gradient(135deg, #0c2461 0%, #1e3799 100%)",
-                color: "white",
-                p: 2.5,
-                textAlign: "center",
-                position: "relative",
+                background:
+                  "linear-gradient(to bottom, #ffffff 0%, #fafbff 100%)",
+                borderRadius: 4,
                 overflow: "hidden",
-                "&::after": {
-                  content: '""',
-                  position: "absolute",
-                  top: -50,
-                  right: -50,
-                  width: 100,
-                  height: 100,
-                  background: "rgba(255,255,255,0.1)",
-                  borderRadius: "50%",
-                },
+                position: "relative",
+                boxShadow:
+                  "0 15px 35px rgba(102, 126, 234, 0.25), 0 5px 15px rgba(118, 75, 162, 0.2)",
+                border: "1px solid rgba(255, 255, 255, 0.9)",
               }}
             >
-              <Typography
-                variant="h6"
-                fontWeight="bold"
+              {/* Premium Header with Holographic Effect */}
+              <Box
                 sx={{
-                  color: "white",
-                  fontSize: "1.2rem",
-                  letterSpacing: 1,
-                  textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f6d365 100%)",
+                  padding: "24px",
                   position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                MIDLAND MICROFIN LTD
-              </Typography>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: "rgba(255,255,255,0.9)",
-                  fontSize: "0.85rem",
-                  letterSpacing: 2,
-                  textTransform: "uppercase",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                VISITOR ACCESS CARD
-              </Typography>
-            </Box>
-
-            {/* Card Content */}
-            <Box sx={{ p: 3.5, position: "relative" }}>
-              {/* Decorative Elements */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 20,
-                  right: 20,
-                  width: 30,
-                  height: 30,
-                  borderRadius: "50%",
-                  background:
-                    "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
-                  opacity: 0.7,
-                }}
-              />
-
-              {/* Contact Info with Icon */}
-              <Box
-                sx={{
-                  mb: 2,
-                  p: 2,
-                  background:
-                    "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
-                  borderRadius: 2,
-                  borderLeft: "4px solid #0c2461",
-                }}
-              >
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    mb: 1,
-                    fontWeight: "bold",
-                    color: "#0c2461",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <PhoneIcon fontSize="small" />
-                  Contact
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: "#2c3e50",
-                    mb: 0.5,
-                    fontWeight: "medium",
-                    fontFamily: "monospace",
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  {passData?.phoneNo}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "#7f8c8d",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                  }}
-                >
-                  <BadgeIcon fontSize="small" />
-                  Govt. Id:{" "}
-                  {passData?.governmentId?.substring(0, 6) || "475895"}
-                </Typography>
-              </Box>
-
-              {/* Person to Meet */}
-              <Box
-                sx={{
-                  mb: 2,
-                  p: 2,
-                  background:
-                    "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
-                  borderRadius: 2,
-                  borderLeft: "4px solid #2e7d32",
-                }}
-              >
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    mb: 1,
-                    fontWeight: "bold",
-                    color: "#2e7d32",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <PersonIcon fontSize="small" />
-                  Person to Meet
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: "#1b5e20",
-                    fontWeight: "medium",
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  {passData?.personToMeet}
-                </Typography>
-              </Box>
-
-              {/* Visitor Info with Avatar */}
-              <Box
-                sx={{
-                  mb: 2.5,
-                  p: 2.5,
-                  textAlign: "center",
-                  background:
-                    "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
-                  borderRadius: 2,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                  border: "1px solid #e9ecef",
-                  position: "relative",
-                }}
-              >
-                {/* Avatar Badge */}
-                <Box
-                  sx={{
+                  overflow: "hidden",
+                  "&::after": {
+                    content: '""',
                     position: "absolute",
-                    top: -20,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: 50,
-                    height: 50,
-                    borderRadius: "50%",
+                    top: 0,
+                    left: "-100%",
+                    width: "100%",
+                    height: "100%",
                     background:
-                      "linear-gradient(135deg, #0c2461 0%, #4a69bd 100%)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontWeight: "bold",
-                    fontSize: "1.2rem",
-                    boxShadow: "0 4px 10px rgba(12, 36, 97, 0.3)",
-                    border: "3px solid white",
-                  }}
-                >
-                  {getInitials(passData?.visitorName)}
-                </Box>
-
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  sx={{
-                    color: "#0c2461",
-                    mb: 1,
-                    mt: 3,
-                    fontSize: "1.3rem",
-                  }}
-                >
-                  {passData?.visitorName}
-                </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: 3,
-                    mt: 2,
-                  }}
-                >
-                  <Chip
-                    label={`ID: ${passData?.visitorId}`}
-                    size="small"
-                    sx={{
-                      background:
-                        "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
-                      fontWeight: "medium",
-                      color: "#0c2461",
-                    }}
-                  />
-                  <Chip
-                    label="Visitor"
-                    size="small"
-                    sx={{
-                      background:
-                        "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
-                      fontWeight: "medium",
-                      color: "#2e7d32",
-                    }}
-                  />
-                </Box>
-              </Box>
-
-              {/* Valid Dates with Cards */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  mb: 4,
-                  gap: 2,
+                      "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                    animation: "shine 3s infinite",
+                  },
+                  "@keyframes shine": {
+                    "0%": { left: "-100%" },
+                    "100%": { left: "200%" },
+                  },
                 }}
               >
                 <Box
                   sx={{
-                    textAlign: "center",
-                    flex: 1,
-                    p: 2,
-                    background:
-                      "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)",
-                    borderRadius: 2,
-                    boxShadow: "0 4px 8px rgba(0,0,0,0.05)",
-                    border: "1px solid #ffcc80",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
                   }}
                 >
-                  <CalendarTodayIcon
+                  <Box>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mb: 1,
+                      }}
+                    >
+                      <Security sx={{ color: "white", fontSize: 22 }} />
+                      <Typography
+                        sx={{
+                          color: "rgba(255,255,255,0.95)",
+                          fontWeight: 600,
+                          fontSize: "0.8rem",
+                          letterSpacing: 1.5,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Authorized Visitor
+                      </Typography>
+                    </Box>
+                    <Typography
+                      sx={{
+                        color: "white",
+                        fontWeight: 900,
+                        fontSize: "1.7rem",
+                        letterSpacing: 1.2,
+                        textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      VISITOR PASS
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: "rgba(255,255,255,0.9)",
+                        fontSize: "0.8rem",
+                        fontWeight: 700,
+                        letterSpacing: 1.5,
+                        mt: 0.5,
+                      }}
+                    >
+                      {passData?.passNumber || "VP-000000"}
+                    </Typography>
+                  </Box>
+                  <Box
                     sx={{
-                      color: "#f57c00",
-                      mb: 1,
-                      fontSize: "1.5rem",
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#e65100",
-                      display: "block",
-                      mb: 0.5,
-                      fontWeight: "bold",
-                      textTransform: "uppercase",
-                      fontSize: "0.75rem",
-                    }}
-                  >
-                    Valid From
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    fontWeight="bold"
-                    sx={{
-                      color: "#333",
-                      fontSize: "0.95rem",
-                    }}
-                  >
-                    {passData?.validFrom}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    textAlign: "center",
-                    flex: 1,
-                    p: 2,
-                    background:
-                      "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
-                    borderRadius: 2,
-                    boxShadow: "0 4px 8px rgba(0,0,0,0.05)",
-                    border: "1px solid #a5d6a7",
-                  }}
-                >
-                  <CalendarTodayIcon
-                    sx={{
-                      color: "#388e3c",
-                      mb: 1,
-                      fontSize: "1.5rem",
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#2e7d32",
-                      display: "block",
-                      mb: 0.5,
-                      fontWeight: "bold",
-                      textTransform: "uppercase",
-                      fontSize: "0.75rem",
+                      background: "white",
+                      borderRadius: 2,
+                      padding: "8px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                     }}
                   >
-                    Valid Until
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    fontWeight="bold"
-                    sx={{
-                      color: "#333",
-                      fontSize: "0.95rem",
-                    }}
-                  >
-                    {passData?.validUntil}
-                  </Typography>
+                    <QrCode2 sx={{ color: "#667eea", fontSize: 52 }} />
+                  </Box>
                 </Box>
               </Box>
-            </Box>
 
-            {/* Card Footer */}
-            <Box
-              sx={{
-                background: "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)",
-                p: 2,
-                textAlign: "center",
-                borderTop: "2px solid #e0e0e0",
-              }}
-            >
-            </Box>
+              {/* Main Content */}
+              <Box sx={{ padding: "28px" }}>
+                {/* Photo and Name Section */}
+                <Box sx={{ display: "flex", gap: 3, mb: 3 }}>
+                  <Box sx={{ position: "relative" }}>
+                    <Avatar
+                      alt={passData?.fullName}
+                      sx={{
+                        width: 105,
+                        height: 105,
+                        border: "4px solid transparent",
+                        backgroundImage:
+                          "linear-gradient(white, white), linear-gradient(135deg, #667eea, #764ba2)",
+                        backgroundOrigin: "border-box",
+                        backgroundClip: "padding-box, border-box",
+                        boxShadow: "0 8px 24px rgba(102, 126, 234, 0.3)",
+                        fontSize: "3rem",
+                        bgcolor: "#667eea",
+                      }}
+                    >
+                      {getInitials(passData?.fullName)}
+                    </Avatar>
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: -6,
+                        right: -6,
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg, #667eea, #764ba2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "3px solid white",
+                        boxShadow: "0 4px 12px rgba(102, 126, 234, 0.4)",
+                      }}
+                    >
+                      <VerifiedUser sx={{ color: "white", fontSize: 16 }} />
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      sx={{
+                        background: "linear-gradient(135deg, #667eea, #764ba2)",
+                        backgroundClip: "text",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        fontWeight: 900,
+                        fontSize: "1.5rem",
+                        mb: 0.8,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {passData?.fullName || "Visitor Name"}
+                    </Typography>
+                    <Chip
+                      icon={<BadgeOutlined sx={{ fontSize: 15 }} />}
+                      label={passData?.govtId || "ID: N/A"}
+                      size="small"
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))",
+                        color: "#667eea",
+                        fontWeight: 800,
+                        fontSize: "0.75rem",
+                        height: 28,
+                        border: "1.5px solid rgba(102, 126, 234, 0.3)",
+                        mb: 1.2,
+                        "& .MuiChip-icon": {
+                          color: "#764ba2",
+                        },
+                      }}
+                    />
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <PhoneOutlined sx={{ color: "#667eea", fontSize: 18 }} />
+                      <Typography
+                        sx={{
+                          color: "#4a5568",
+                          fontSize: "0.9rem",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {passData?.contactNumber || "Phone: N/A"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                {/* Details Grid */}
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Box
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, rgba(102, 126, 234, 0.06), rgba(118, 75, 162, 0.04))",
+                        borderRadius: 2.5,
+                        padding: "16px 18px",
+                        border: "1.5px solid rgba(102, 126, 234, 0.15)",
+                      }}
+                    >
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                      >
+                        <BusinessOutlined
+                          sx={{ color: "#667eea", fontSize: 24 }}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              color: "#718096",
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
+                              mb: 0.3,
+                            }}
+                          >
+                            Purpose of Visit
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: "#2d3748",
+                              fontWeight: 800,
+                              fontSize: "1rem",
+                            }}
+                          >
+                            {passData?.purposeOfVisit || "Business Meeting"}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Box
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, rgba(118, 75, 162, 0.06), rgba(240, 147, 251, 0.04))",
+                        borderRadius: 2.5,
+                        padding: "16px 18px",
+                        border: "1.5px solid rgba(118, 75, 162, 0.15)",
+                      }}
+                    >
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                      >
+                        <PersonOutline
+                          sx={{ color: "#764ba2", fontSize: 24 }}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              color: "#718096",
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
+                              mb: 0.3,
+                            }}
+                          >
+                            Person to Meet
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: "#2d3748",
+                              fontWeight: 800,
+                              fontSize: "1rem",
+                            }}
+                          >
+                            {passData?.personToMeet || "Contact Person"}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Box
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, rgba(72, 187, 120, 0.08), rgba(104, 211, 145, 0.05))",
+                        borderRadius: 2.5,
+                        padding: "16px 14px",
+                        border: "1.5px solid rgba(72, 187, 120, 0.25)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <EventAvailableOutlined
+                        sx={{ color: "#48bb78", fontSize: 24, mb: 0.8 }}
+                      />
+                      <Typography
+                        sx={{
+                          color: "#718096",
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.8,
+                          mb: 0.5,
+                        }}
+                      >
+                        Valid From
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: "#2f855a",
+                          fontWeight: 900,
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        {passData?.validFrom}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Box
+                      sx={{
+                        background:
+                          "linear-gradient(135deg, rgba(245, 101, 101, 0.08), rgba(252, 129, 129, 0.05))",
+                        borderRadius: 2.5,
+                        padding: "16px 14px",
+                        border: "1.5px solid rgba(245, 101, 101, 0.25)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <EventBusyOutlined
+                        sx={{ color: "#f56565", fontSize: 24, mb: 0.8 }}
+                      />
+                      <Typography
+                        sx={{
+                          color: "#718096",
+                          fontSize: "0.68rem",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: 0.8,
+                          mb: 0.5,
+                        }}
+                      >
+                        Valid Till
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: "#c53030",
+                          fontWeight: 900,
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        {passData?.validTill}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              {/* Premium Footer */}
+              <Box
+                sx={{
+                  background:
+                    "linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.06))",
+                  borderTop: "1.5px solid rgba(102, 126, 234, 0.15)",
+                  padding: "16px 24px",
+                  textAlign: "center",
+                }}
+              >
+                <Typography
+                  sx={{
+                    background: "linear-gradient(135deg, #667eea, #764ba2)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    fontSize: "0.8rem",
+                    fontWeight: 800,
+                    letterSpacing: 1,
+                  }}
+                >
+                  Provided by Midland Microfin Limited
+                </Typography>
+              </Box>
+            </Card>
           </Box>
 
-          {/* Action Buttons - Only Close and Download */}
+          {/* Action Buttons */}
           <Box
             sx={{
               display: "flex",
               gap: 2,
+              mt: 3,
               justifyContent: "center",
               width: "100%",
-              maxWidth: 380,
             }}
           >
             <Button
@@ -905,8 +894,6 @@ const GeneratePass = () => {
                 "&:hover": {
                   borderColor: "#95a5a6",
                   backgroundColor: "rgba(189, 195, 199, 0.1)",
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
                 },
                 transition: "all 0.3s ease",
               }}
@@ -914,31 +901,29 @@ const GeneratePass = () => {
               Close
             </Button>
             <Button
-              onClick={downloadPassAsImage}
               variant="contained"
               startIcon={<DownloadIcon />}
+              onClick={downloadPassAsImage}
               sx={{
                 borderRadius: 2,
                 px: 3,
                 py: 1,
-                background: "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 fontWeight: "medium",
-                boxShadow: "0 4px 12px rgba(46, 204, 113, 0.3)",
+                boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
                 "&:hover": {
                   background:
-                    "linear-gradient(135deg, #27ae60 0%, #219a52 100%)",
-                  transform: "translateY(-2px)",
-                  boxShadow: "0 6px 16px rgba(46, 204, 113, 0.4)",
+                    "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
+                  boxShadow: "0 6px 16px rgba(102, 126, 234, 0.4)",
                 },
                 transition: "all 0.3s ease",
               }}
             >
-              Download
+              Download Pass
             </Button>
           </Box>
         </DialogContent>
       </Dialog>
-
       <Snackbar
         open={snackbar.open}
         autoHideDuration={3000}
