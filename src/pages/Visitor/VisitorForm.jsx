@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useCallback,
-  useMemo,
-  useEffect,
-} from "react";
+import React, { useState, useRef, useEffect, useCallback, memo } from "react";
 import {
   Box,
   Card,
@@ -58,6 +52,138 @@ import {
   submitVisitorRequest,
 } from "../../utilities/apiUtils/apiHelper";
 
+// ============ ADDED: Page Title Configuration ============
+const PAGE_TITLES = {
+  default: "Visitor Registration Tool",
+  verification: "Visitor Tool - Phone Verification",
+  photo: "Visitor Tool - Take Photo",
+  purpose: "Visitor Tool - Purpose",
+  details: "Visitor Tool - Details",
+  meeting: "Visitor Tool - Meeting Info",
+  review: "Visitor Tool - Review",
+  success: "Visitor Tool - Registration Complete",
+};
+// =========================================================
+
+// Memoized components for better performance
+const PurposesGrid = memo(({ purposes, selectedPurpose, onSelect }) => (
+  <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+    {purposes.map((purpose) => (
+      <Grid item xs={6} key={purpose.id}>
+        <Paper
+          onClick={() => onSelect(purpose.id)}
+          sx={{
+            p: { xs: 1.5, sm: 2.5 },
+            textAlign: "center",
+            cursor: "pointer",
+            background:
+              selectedPurpose === purpose.id
+                ? "linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(3, 169, 244, 0.2) 100%)"
+                : "rgba(255, 255, 255, 0.05)",
+            border:
+              selectedPurpose === purpose.id
+                ? "2px solid #2196f3"
+                : "1px solid rgba(255, 255, 255, 0.1)",
+            transition: "all 0.3s ease",
+            "&:hover": {
+              background:
+                "linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(3, 169, 244, 0.1) 100%)",
+              transform: "translateY(-4px)",
+            },
+          }}
+        >
+          <Typography sx={{ fontSize: { xs: 32, sm: 40 }, mb: 1 }}>
+            {purpose.icon}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "white",
+              fontWeight: selectedPurpose === purpose.id ? 600 : 400,
+              fontSize: "0.9rem",
+            }}
+          >
+            {purpose.label}
+          </Typography>
+        </Paper>
+      </Grid>
+    ))}
+  </Grid>
+));
+
+const ReviewItem = memo(({ label, value, subValue, onEdit, uploadedPhoto }) => (
+  <Paper
+    sx={{
+      p: 2,
+      background: "rgba(255, 255, 255, 0.05)",
+      border: "1px solid rgba(255, 255, 255, 0.1)",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <Box sx={{ flex: 1 }}>
+      <Typography
+        variant="caption"
+        sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.8rem" }}
+      >
+        {label}
+      </Typography>
+      <Typography sx={{ color: "white", fontWeight: 500, fontSize: "0.95rem" }}>
+        {value}
+      </Typography>
+      {subValue && (
+        <Typography
+          variant="body2"
+          sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem" }}
+        >
+          {subValue}
+        </Typography>
+      )}
+      {uploadedPhoto && label === "Photo" && (
+        <Box sx={{ mt: 1 }}>
+          <img
+            src={uploadedPhoto}
+            alt="Uploaded selfie"
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "2px solid #2196f3",
+            }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "https://via.placeholder.com/60";
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              color: "#2196f3",
+              display: "block",
+              mt: 0.5,
+              fontSize: "0.7rem",
+            }}
+          >
+            <Link
+              href={uploadedPhoto}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ color: "#2196f3", fontSize: "0.75rem" }}
+            >
+              View Photo
+            </Link>
+          </Typography>
+        </Box>
+      )}
+    </Box>
+    <IconButton size="small" onClick={onEdit} sx={{ color: "#2196f3" }}>
+      <EditIcon fontSize="small" />
+    </IconButton>
+  </Paper>
+));
+
 const PURPOSES = [
   { id: "business", label: "Business Meeting", icon: "💼" },
   { id: "interview", label: "Interview", icon: "👔" },
@@ -105,47 +231,52 @@ const INITIAL_FORM_DATA = {
   photoPreview: null,
 };
 
-// Camera component
-const CameraComponent = ({ onCapture, onCancel }) => {
+// Optimized Camera component with lazy loading
+const CameraComponent = memo(({ onCapture, onCancel }) => {
   const videoRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    const startCamera = async () => {
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+        });
+
+        if (mounted) {
+          setStream(mediaStream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream;
+          }
+          setIsLoading(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error("Error accessing camera:", err);
+          setError("Unable to access camera. Please check camera permissions.");
+          setIsLoading(false);
+        }
+      }
+    };
+
     startCamera();
 
     return () => {
-      stopCamera();
+      mounted = false;
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
     };
   }, []);
 
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-      });
-
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      setError("Unable to access camera. Please check camera permissions.");
-    }
-  };
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-  };
-
-  const capturePhoto = () => {
+  const capturePhoto = useCallback(() => {
     if (
       videoRef.current &&
       videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA
@@ -153,25 +284,21 @@ const CameraComponent = ({ onCapture, onCancel }) => {
       const canvas = document.createElement("canvas");
       const video = videoRef.current;
 
-      // Set canvas dimensions to match video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
       const ctx = canvas.getContext("2d");
-
-      // Draw video frame to canvas
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Convert to data URL
-      const photoData = canvas.toDataURL("image/jpeg");
+      const photoData = canvas.toDataURL("image/jpeg", 0.8); // Reduced quality for performance
 
-      // Stop camera
-      stopCamera();
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
 
-      // Pass photo data to parent
       onCapture(photoData);
     }
-  };
+  }, [stream, onCapture]);
 
   if (error) {
     return (
@@ -189,16 +316,35 @@ const CameraComponent = ({ onCapture, onCancel }) => {
   return (
     <Box>
       <Box sx={{ position: "relative", width: "100%", height: 300, mb: 2 }}>
+        {isLoading && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <Typography sx={{ color: "white" }}>Loading camera...</Typography>
+          </Box>
+        )}
         <video
           ref={videoRef}
           autoPlay
           playsInline
+          muted
           style={{
             width: "100%",
             height: "100%",
             objectFit: "cover",
             borderRadius: "8px",
-            transform: "scaleX(-1)", // Mirror the video
+            transform: "scaleX(-1)",
+            backgroundColor: "#000",
           }}
         />
       </Box>
@@ -208,12 +354,13 @@ const CameraComponent = ({ onCapture, onCancel }) => {
           variant="contained"
           startIcon={<CameraAltIcon />}
           onClick={capturePhoto}
+          disabled={isLoading}
           sx={{
             background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
             color: "white",
           }}
         >
-          Capture Photo
+          {isLoading ? "Loading..." : "Capture Photo"}
         </Button>
         <Button
           variant="outlined"
@@ -228,9 +375,9 @@ const CameraComponent = ({ onCapture, onCancel }) => {
       </Box>
     </Box>
   );
-};
+});
 
-// Main VisitorForm component
+// Main VisitorForm component with performance optimizations
 export default function VisitorForm() {
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -246,115 +393,289 @@ export default function VisitorForm() {
   const [selfieResponse, setSelfieResponse] = useState(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState(null);
   const [qrCode, setQrCode] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const fileInputRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
-  // Add this useEffect to handle fullscreen and QR code
+  // ============ ADDED: Dynamic Page Title Updater ============
   useEffect(() => {
-    // Get QR code from session storage or URL
+    const updatePageTitle = () => {
+      let title = PAGE_TITLES.default;
+
+      if (isSubmitted) {
+        title = PAGE_TITLES.success;
+      } else {
+        switch (activeStep) {
+          case 0:
+            title = PAGE_TITLES.verification;
+            break;
+          case 1:
+            title = PAGE_TITLES.photo;
+            break;
+          case 2:
+            title = PAGE_TITLES.purpose;
+            break;
+          case 3:
+            title = PAGE_TITLES.details;
+            break;
+          case 4:
+            title = PAGE_TITLES.meeting;
+            break;
+          case 5:
+            title = PAGE_TITLES.review;
+            break;
+          default:
+            title = PAGE_TITLES.default;
+        }
+      }
+
+      // Update document title
+      document.title = title;
+
+      // Update meta tags for better sharing
+      updateMetaTags(title);
+
+      // Update history state to hide URL parameters
+      updateHistoryState(title);
+    };
+
+    const updateMetaTags = (title) => {
+      // Update Open Graph tags for better sharing
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      const ogDescription = document.querySelector(
+        'meta[property="og:description"]'
+      );
+      const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+
+      if (ogTitle) ogTitle.setAttribute("content", title);
+      if (ogDescription)
+        ogDescription.setAttribute("content", "Visitor Registration System");
+      if (twitterTitle) twitterTitle.setAttribute("content", title);
+    };
+
+    const updateHistoryState = (title) => {
+      // Clean URL in history to hide parameters
+      if (window.history?.replaceState) {
+        try {
+          // Create a clean URL without hash parameters
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, title, cleanUrl);
+
+          // Also update the page state for PWA
+          if (
+            window.navigator.standalone ||
+            window.matchMedia("(display-mode: standalone)").matches
+          ) {
+            // In PWA mode, ensure title is clean
+            document.title = "Visitor Tool";
+          }
+        } catch (error) {
+          console.warn("Could not update history state:", error);
+        }
+      }
+    };
+
+    updatePageTitle();
+
+    // Also update periodically to ensure title stays correct
+    const titleInterval = setInterval(updatePageTitle, 2000);
+
+    return () => {
+      clearInterval(titleInterval);
+      // Restore original title on unmount
+      document.title = "Visitor Registration Tool";
+    };
+  }, [activeStep, isSubmitted]);
+  // =========================================================
+
+  // Performance: Debounce scroll events
+  useEffect(() => {
+    let scrollTimeout;
+    const handleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        // Smooth scrolling optimization
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.style.willChange = "transform";
+        }
+      }, 100);
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll, { passive: true });
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", handleScroll);
+      }
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
+  // Optimized useEffect for initial setup
+  useEffect(() => {
+    // ============ ADDED: Initial URL & Title Setup ============
+    // Set initial document title
+    document.title = "Visitor Registration Tool";
+
+    // Update meta tags for PWA
+    const metaTags = [
+      { name: "application-name", content: "Visitor Tool" },
+      { name: "apple-mobile-web-app-title", content: "Visitor Tool" },
+      { property: "og:title", content: "Visitor Tool" },
+      { property: "og:description", content: "Visitor Registration System" },
+      { property: "og:type", content: "website" },
+    ];
+
+    metaTags.forEach((tag) => {
+      let element = document.querySelector(
+        `[${tag.name ? "name" : "property"}="${tag.name || tag.property}"]`
+      );
+      if (!element) {
+        element = document.createElement("meta");
+        if (tag.name) element.name = tag.name;
+        if (tag.property) element.setAttribute("property", tag.property);
+        if (tag.content) element.content = tag.content;
+        document.head.appendChild(element);
+      } else if (tag.content) {
+        element.content = tag.content;
+      }
+    });
+    // =========================================================
+
+    // Get QR code
     const storedQR = sessionStorage.getItem("visitorQRCode");
     if (storedQR) {
       setQrCode(storedQR);
     } else {
-      // Get from URL path
       const path = window.location.hash;
       const match = path.match(/\/register\/(VISITOR-[A-Z0-9]+-[0-9]+)/);
-      if (match && match[1]) {
+      if (match?.[1]) {
         setQrCode(match[1]);
         sessionStorage.setItem("visitorQRCode", match[1]);
         sessionStorage.setItem("qrTimestamp", Date.now().toString());
       }
     }
 
-    // Force fullscreen mode on mobile
-    const setFullscreenHeight = () => {
-      // Calculate viewport height properly for mobile
+    // Mobile optimization functions
+    const optimizeMobileExperience = () => {
+      // Set proper viewport height
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty("--vh", `${vh}px`);
-
-      // Hide address bar on mobile
-      setTimeout(() => {
-        window.scrollTo(0, 1);
-      }, 100);
-
-      // Set body height
       document.body.style.height = `${window.innerHeight}px`;
+
+      // Hide URL bar (works on iOS/Android)
+      setTimeout(() => window.scrollTo(0, 1), 100);
+      setTimeout(() => window.scrollTo(0, 1), 500);
+
+      // Enable hardware acceleration
+      document.documentElement.style.transform = "translateZ(0)";
+      document.documentElement.style.backfaceVisibility = "hidden";
+
+      // Optimize scrolling performance
+      document.body.style.overflow = "hidden";
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.style.webkitOverflowScrolling = "touch";
+        scrollContainerRef.current.style.overscrollBehavior = "contain";
+      }
     };
 
-    // Initial call
-    setFullscreenHeight();
-
-    // Prevent pull-to-refresh on mobile
-    let lastTouchY = 0;
-    const handleTouchStart = (e) => {
-      lastTouchY = e.touches[0].clientY;
-    };
-
-    const handleTouchMove = (e) => {
-      const touchY = e.touches[0].clientY;
-      const touchDiff = touchY - lastTouchY;
-
-      // If user is pulling down from top of page, prevent it
-      if (window.scrollY === 0 && touchDiff > 0) {
+    // Prevent pull-to-refresh with passive listeners
+    const preventPullToRefresh = (e) => {
+      if (window.scrollY === 0 && e.touches[0].pageY > 10) {
         e.preventDefault();
       }
-
-      lastTouchY = touchY;
     };
+
+    // Initialize
+    optimizeMobileExperience();
+    setIsLoading(false);
 
     // Add event listeners
-    window.addEventListener("resize", setFullscreenHeight);
-    window.addEventListener("orientationchange", setFullscreenHeight);
-    document.addEventListener("touchstart", handleTouchStart, {
+    const events = ["resize", "orientationchange"];
+    events.forEach((event) =>
+      window.addEventListener(event, optimizeMobileExperience)
+    );
+
+    // Use passive listeners for better performance
+    document.addEventListener("touchmove", preventPullToRefresh, {
       passive: false,
     });
-    document.addEventListener("touchmove", handleTouchMove, { passive: false });
 
-    // Prevent zoom on double tap
-    let lastTouchEnd = 0;
-    const preventZoom = (e) => {
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) {
-        e.preventDefault();
+    // ============ ADDED: Browser UI Hiding ============
+    // Hide browser UI on mobile
+    const hideBrowserUI = () => {
+      // For iOS Safari
+      if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+        setTimeout(() => {
+          window.scrollTo(0, 1);
+        }, 100);
       }
-      lastTouchEnd = now;
+
+      // For Android Chrome
+      if (navigator.userAgent.match(/Android/i)) {
+        document.body.style.minHeight = "100vh";
+        document.body.style.minHeight = "-webkit-fill-available";
+      }
+
+      // Update title to simple version for URL bar
+      setTimeout(() => {
+        document.title = "Visitor Tool";
+      }, 50);
     };
-    document.addEventListener("touchend", preventZoom, { passive: false });
+
+    hideBrowserUI();
+    window.addEventListener("focus", hideBrowserUI);
+    // ==================================================
 
     // Cleanup
     return () => {
-      window.removeEventListener("resize", setFullscreenHeight);
-      window.removeEventListener("orientationchange", setFullscreenHeight);
-      document.removeEventListener("touchstart", handleTouchStart);
-      document.removeEventListener("touchmove", handleTouchMove);
-      document.removeEventListener("touchend", preventZoom);
+      events.forEach((event) =>
+        window.removeEventListener(event, optimizeMobileExperience)
+      );
+      document.removeEventListener("touchmove", preventPullToRefresh);
+      window.removeEventListener("focus", hideBrowserUI);
+
+      // Restore original title
+      document.title = "VMS";
     };
   }, []);
 
-  // Derived values
+  // Derived values - memoized
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
-  const canProceedToMeetingInfo =
-    formData.fullName && formData.company && formData.governmentId;
-  const canProceedToReview =
-    formData.personToMeet && formData.department && formData.visitDuration;
+  const canProceedToMeetingInfo = useCallback(
+    () => formData.fullName && formData.company && formData.governmentId,
+    [formData.fullName, formData.company, formData.governmentId]
+  );
+  const canProceedToReview = useCallback(
+    () =>
+      formData.personToMeet && formData.department && formData.visitDuration,
+    [formData.personToMeet, formData.department, formData.visitDuration]
+  );
 
   // Format phone number
-  const formatPhoneNumber = (phone) => phone.replace(/\D/g, "");
+  const formatPhoneNumber = useCallback(
+    (phone) => phone.replace(/\D/g, ""),
+    []
+  );
 
-  // Handlers
-  const handlePhoneChange = (e) => {
+  // Optimized handlers with useCallback
+  const handlePhoneChange = useCallback((e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 10);
-    setFormData({ ...formData, phone: value });
+    setFormData((prev) => ({ ...prev, phone: value }));
     setErrorMessage("");
-  };
+  }, []);
 
-  const handleOtpChange = (e) => {
+  const handleOtpChange = useCallback((e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 4);
-    setFormData({ ...formData, otp: value });
+    setFormData((prev) => ({ ...prev, otp: value }));
     setErrorMessage("");
-  };
+  }, []);
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = useCallback(async () => {
     if (!formData.phone || formData.phone.length < 10) {
       setErrorMessage("Please enter a valid 10-digit phone number");
       return;
@@ -372,7 +693,7 @@ export default function VisitorForm() {
 
       if (txnIdValue) {
         setTxnId(txnIdValue);
-        setFormData({ ...formData, otpSent: true });
+        setFormData((prev) => ({ ...prev, otpSent: true }));
         setResendCountdown(30);
 
         const countdownInterval = setInterval(() => {
@@ -397,14 +718,14 @@ export default function VisitorForm() {
     } finally {
       setIsSendingOtp(false);
     }
-  };
+  }, [formData.phone, formatPhoneNumber]);
 
-  const handleResendOtp = () => {
+  const handleResendOtp = useCallback(() => {
     if (resendCountdown > 0) return;
     handleSendOtp();
-  };
+  }, [resendCountdown, handleSendOtp]);
 
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = useCallback(async () => {
     if (!formData.otp || formData.otp.length !== 4) {
       setErrorMessage("Please enter a valid 4-digit OTP");
       return;
@@ -422,7 +743,7 @@ export default function VisitorForm() {
       const response = await verifyOtp({ txnId, otp: formData.otp });
 
       if (response?.success) {
-        setFormData({ ...formData, verified: true });
+        setFormData((prev) => ({ ...prev, verified: true }));
       } else {
         throw new Error(response?.message || "OTP verification failed");
       }
@@ -436,39 +757,41 @@ export default function VisitorForm() {
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [formData.otp, txnId]);
 
-  const handleTermsChange = (e) => {
-    const newTermsAccepted = e.target.checked;
-    setFormData({ ...formData, termsAccepted: newTermsAccepted });
+  const handleTermsChange = useCallback(
+    (e) => {
+      const newTermsAccepted = e.target.checked;
+      setFormData((prev) => ({ ...prev, termsAccepted: newTermsAccepted }));
 
-    if (newTermsAccepted && formData.verified) {
-      setTimeout(() => setActiveStep(1), 500);
-    }
-  };
+      if (newTermsAccepted && formData.verified) {
+        setTimeout(() => setActiveStep(1), 500);
+      }
+    },
+    [formData.verified]
+  );
 
   // Camera handlers
-  const handleStartCamera = () => {
+  const handleStartCamera = useCallback(() => {
     setShowCamera(true);
-  };
+  }, []);
 
-  const handleCancelCamera = () => {
+  const handleCancelCamera = useCallback(() => {
     setShowCamera(false);
-  };
+  }, []);
 
-  const handleCapturePhoto = (photoData) => {
-    // Convert data URL to blob
+  const handleCapturePhoto = useCallback((photoData) => {
     fetch(photoData)
       .then((res) => res.blob())
       .then((blob) => {
         const file = new File([blob], "captured-photo.jpg", {
           type: "image/jpeg",
         });
-        setFormData({
-          ...formData,
+        setFormData((prev) => ({
+          ...prev,
           photo: file,
           photoPreview: photoData,
-        });
+        }));
         setShowCamera(false);
       })
       .catch((err) => {
@@ -476,27 +799,27 @@ export default function VisitorForm() {
         setErrorMessage("Failed to capture photo. Please try again.");
         setShowCamera(false);
       });
-  };
+  }, []);
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = useCallback((event) => {
     const file = event.target.files[0];
     if (file && file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({
-          ...formData,
+        setFormData((prev) => ({
+          ...prev,
           photo: file,
           photoPreview: reader.result,
-        });
+        }));
       };
       reader.readAsDataURL(file);
     } else {
       setErrorMessage("Please select a valid image file.");
     }
-  };
+  }, []);
 
   // Upload selfie API call
-  const uploadSelfie = async () => {
+  const uploadSelfie = useCallback(async () => {
     if (!formData.photo) {
       setErrorMessage("Please select a photo first.");
       return false;
@@ -526,52 +849,55 @@ export default function VisitorForm() {
     } finally {
       setIsUploadingSelfie(false);
     }
-  };
+  }, [formData.photo]);
 
-  const deletePhoto = () => {
-    setFormData({
-      ...formData,
+  const deletePhoto = useCallback(() => {
+    setFormData((prev) => ({
+      ...prev,
       photo: null,
       photoPreview: null,
-    });
+    }));
     setSelfieResponse(null);
     setUploadedPhotoUrl(null);
-  };
+  }, []);
 
-  const handlePhotoContinue = async () => {
+  const handlePhotoContinue = useCallback(async () => {
     if (!formData.photo) {
       setErrorMessage("Please take or upload a photo first.");
       return;
     }
 
-    // Upload selfie when clicking continue
     const uploadSuccess = await uploadSelfie();
 
     if (uploadSuccess) {
       setActiveStep(2);
     }
-  };
+  }, [formData.photo, uploadSelfie]);
 
-  const handlePurposeSelect = (purposeId) => {
-    setFormData({ ...formData, purpose: purposeId });
-    setTimeout(() => setActiveStep(3), 600);
-  };
+  const handlePurposeSelect = useCallback((purposeId) => {
+    setFormData((prev) => ({ ...prev, purpose: purposeId }));
+    setTimeout(() => setActiveStep(3), 300); // Reduced timeout for smoother transition
+  }, []);
 
-  const handleChange = (field) => (e) => {
-    setFormData({ ...formData, [field]: e.target.value });
-  };
+  const handleChange = useCallback(
+    (field) => (e) => {
+      setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    },
+    []
+  );
 
-  const handleEdit = (step) => {
+  const handleEdit = useCallback((step) => {
     setActiveStep(step);
-  };
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (activeStep > 0) {
       setActiveStep(activeStep - 1);
     }
-  };
+  }, [activeStep]);
 
-  const handleSubmit = async () => {
+  // ============ ADDED: Enhanced Submit Handler with Title Update ============
+  const handleSubmit = useCallback(async () => {
     if (!selfieResponse || !selfieResponse.visitorId) {
       setErrorMessage("Please upload a photo before submitting.");
       return;
@@ -580,10 +906,12 @@ export default function VisitorForm() {
     setIsSubmitting(true);
     setErrorMessage("");
 
-    // Prepare visitor data according to API requirements
+    // Update title to show submitting state
+    document.title = "Visitor Tool - Submitting...";
+
     const visitorData = {
-      visitorType: "external", // Default to external as per your form
-      visitType: "personal", // Changed to "personal" as per API example
+      visitorType: "external",
+      visitType: "personal",
       firstName: formData.fullName.split(" ")[0] || formData.fullName,
       lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
       phoneNo: formData.phone,
@@ -592,25 +920,23 @@ export default function VisitorForm() {
       visitPurpose: selectedPurpose?.label || formData.purpose || "Other",
       department: formData.department,
       personToMeet: formData.personToMeet,
-      officeId: 1, // Default office ID - update as needed
-      registerdBy: "self", // Self registration
-      // Additional fields that might be needed
+      officeId: 1,
+      registerdBy: "self",
       company: formData.company || "",
-      qrCode: qrCode || "", // Include QR code in submission
-      // visitorId is NOT included in body - will be URL parameter
+      qrCode: qrCode || "",
     };
 
     try {
-      // Pass visitorId as first parameter and visitorData as second
       const response = await submitVisitorRequest(
         selfieResponse.visitorId,
         visitorData
       );
 
       if (response?.success || response?.data?.success) {
-        // Success - show thank you message
+        // Update title to success state
+        document.title = "Visitor Tool - Registration Complete";
+
         setIsSubmitted(true);
-        // Clear session storage
         sessionStorage.removeItem("visitorQRCode");
         sessionStorage.removeItem("qrTimestamp");
       } else {
@@ -623,12 +949,15 @@ export default function VisitorForm() {
           error.message ||
           "Failed to submit registration. Please try again."
       );
+      // Restore title on error
+      document.title = "Visitor Tool - Review";
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [selfieResponse, formData, selectedPurpose, qrCode]);
+  // ==========================================================================
 
-  const handleFillAnother = () => {
+  const handleFillAnother = useCallback(() => {
     setIsSubmitted(false);
     setActiveStep(0);
     setFormData(INITIAL_FORM_DATA);
@@ -638,14 +967,36 @@ export default function VisitorForm() {
     setShowCamera(false);
     setSelfieResponse(null);
     setUploadedPhotoUrl(null);
-  };
+    // Reset title
+    document.title = "Visitor Tool - Phone Verification";
+  }, []);
 
-  const handleClose = () => {
-    // Clear session and close
+  const handleClose = useCallback(() => {
     sessionStorage.removeItem("visitorQRCode");
     sessionStorage.removeItem("qrTimestamp");
     window.close();
-  };
+  }, []);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#0a1929",
+        }}
+      >
+        <Typography sx={{ color: "white" }}>Loading Visitor Tool...</Typography>
+      </Box>
+    );
+  }
 
   if (isSubmitted) {
     return (
@@ -756,6 +1107,8 @@ export default function VisitorForm() {
         height: "100vh",
         height: "calc(var(--vh, 1vh) * 100)",
         overflow: "hidden",
+        transform: "translateZ(0)", // Hardware acceleration
+        willChange: "transform",
       }}
     >
       {/* App-like Header */}
@@ -766,6 +1119,7 @@ export default function VisitorForm() {
           backgroundColor: "rgba(0, 30, 60, 0.9)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          flexShrink: 0,
         }}
       >
         <Toolbar sx={{ minHeight: 56 }}>
@@ -791,6 +1145,7 @@ export default function VisitorForm() {
               background: "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             {activeStep === 0 && "Phone Verification"}
@@ -807,8 +1162,15 @@ export default function VisitorForm() {
         </Toolbar>
       </AppBar>
 
-      {/* Progress Bar */}
-      <Box sx={{ px: 2, py: 1, backgroundColor: "rgba(0, 0, 0, 0.2)" }}>
+      {/* Progress Bar - Fixed height */}
+      <Box
+        sx={{
+          px: 2,
+          py: 1,
+          backgroundColor: "rgba(0, 0, 0, 0.2)",
+          flexShrink: 0,
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           {STEPS.map((_, index) => (
             <Box
@@ -842,12 +1204,16 @@ export default function VisitorForm() {
         </Typography>
       </Box>
 
-      {/* Main Content */}
+      {/* Main Content with optimized scrolling */}
       <Box
+        ref={scrollContainerRef}
         sx={{
           flex: 1,
           overflow: "auto",
-          WebkitOverflowScrolling: "touch",
+          WebkitOverflowScrolling: "touch", // iOS momentum scrolling
+          overscrollBehavior: "contain", // Prevent overscroll effects
+          transform: "translateZ(0)", // Hardware acceleration
+          willChange: "scroll-position",
           p: { xs: 2, sm: 3 },
           "&::-webkit-scrollbar": {
             display: "none",
@@ -864,6 +1230,7 @@ export default function VisitorForm() {
             border: "1px solid rgba(255, 255, 255, 0.1)",
             boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
             borderRadius: { xs: 2, sm: 3 },
+            transform: "translateZ(0)",
           }}
         >
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
@@ -887,7 +1254,7 @@ export default function VisitorForm() {
 
             {/* Step 0: Phone Verification */}
             {activeStep === 0 && (
-              <Zoom in timeout={500}>
+              <Zoom in timeout={300}>
                 <Box>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <PhoneIcon
@@ -1128,7 +1495,7 @@ export default function VisitorForm() {
 
             {/* Step 1: Photo Upload */}
             {activeStep === 1 && (
-              <Zoom in timeout={500}>
+              <Zoom in timeout={300}>
                 <Box>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <CameraAltIcon
@@ -1353,7 +1720,7 @@ export default function VisitorForm() {
 
             {/* Step 2: Purpose Selection */}
             {activeStep === 2 && (
-              <Zoom in timeout={500}>
+              <Zoom in timeout={300}>
                 <Box>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <BusinessCenterIcon
@@ -1380,58 +1747,18 @@ export default function VisitorForm() {
                     </Typography>
                   </Box>
 
-                  <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                    {PURPOSES.map((purpose) => (
-                      <Grid item xs={6} key={purpose.id}>
-                        <Paper
-                          onClick={() => handlePurposeSelect(purpose.id)}
-                          sx={{
-                            p: { xs: 1.5, sm: 2.5 },
-                            textAlign: "center",
-                            cursor: "pointer",
-                            background:
-                              formData.purpose === purpose.id
-                                ? "linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(3, 169, 244, 0.2) 100%)"
-                                : "rgba(255, 255, 255, 0.05)",
-                            border:
-                              formData.purpose === purpose.id
-                                ? "2px solid #2196f3"
-                                : "1px solid rgba(255, 255, 255, 0.1)",
-                            transition: "all 0.3s ease",
-                            "&:hover": {
-                              background:
-                                "linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(3, 169, 244, 0.1) 100%)",
-                              transform: "translateY(-4px)",
-                            },
-                          }}
-                        >
-                          <Typography
-                            sx={{ fontSize: { xs: 32, sm: 40 }, mb: 1 }}
-                          >
-                            {purpose.icon}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              color: "white",
-                              fontWeight:
-                                formData.purpose === purpose.id ? 600 : 400,
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            {purpose.label}
-                          </Typography>
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
+                  <PurposesGrid
+                    purposes={PURPOSES}
+                    selectedPurpose={formData.purpose}
+                    onSelect={handlePurposeSelect}
+                  />
                 </Box>
               </Zoom>
             )}
 
             {/* Step 3: Personal Details */}
             {activeStep === 3 && (
-              <Zoom in timeout={500}>
+              <Zoom in timeout={300}>
                 <Box>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <PersonIcon
@@ -1559,7 +1886,7 @@ export default function VisitorForm() {
                       fullWidth
                       variant="contained"
                       onClick={() => setActiveStep(4)}
-                      disabled={!canProceedToMeetingInfo}
+                      disabled={!canProceedToMeetingInfo()}
                       endIcon={<ArrowForwardIcon />}
                       sx={{
                         mt: 2,
@@ -1584,7 +1911,7 @@ export default function VisitorForm() {
 
             {/* Step 4: Meeting Information */}
             {activeStep === 4 && (
-              <Zoom in timeout={500}>
+              <Zoom in timeout={300}>
                 <Box>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <MeetingRoomIcon
@@ -1802,7 +2129,7 @@ export default function VisitorForm() {
                       fullWidth
                       variant="contained"
                       onClick={() => setActiveStep(5)}
-                      disabled={!canProceedToReview}
+                      disabled={!canProceedToReview()}
                       endIcon={<ArrowForwardIcon />}
                       sx={{
                         mt: 2,
@@ -1831,7 +2158,7 @@ export default function VisitorForm() {
 
             {/* Step 5: Review */}
             {activeStep === 5 && (
-              <Zoom in timeout={500}>
+              <Zoom in timeout={300}>
                 <Box>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <CheckCircleIcon
@@ -1944,78 +2271,3 @@ export default function VisitorForm() {
     </Box>
   );
 }
-
-// Updated ReviewItem component to show uploaded photo
-const ReviewItem = ({ label, value, subValue, onEdit, uploadedPhoto }) => (
-  <Paper
-    sx={{
-      p: 2,
-      background: "rgba(255, 255, 255, 0.05)",
-      border: "1px solid rgba(255, 255, 255, 0.1)",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-  >
-    <Box sx={{ flex: 1 }}>
-      <Typography
-        variant="caption"
-        sx={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.8rem" }}
-      >
-        {label}
-      </Typography>
-      <Typography sx={{ color: "white", fontWeight: 500, fontSize: "0.95rem" }}>
-        {value}
-      </Typography>
-      {subValue && (
-        <Typography
-          variant="body2"
-          sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.85rem" }}
-        >
-          {subValue}
-        </Typography>
-      )}
-      {/* Show uploaded photo preview for photo section */}
-      {uploadedPhoto && label === "Photo" && (
-        <Box sx={{ mt: 1 }}>
-          <img
-            src={uploadedPhoto}
-            alt="Uploaded selfie"
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: "50%",
-              objectFit: "cover",
-              border: "2px solid #2196f3",
-            }}
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = "https://via.placeholder.com/60";
-            }}
-          />
-          <Typography
-            variant="caption"
-            sx={{
-              color: "#2196f3",
-              display: "block",
-              mt: 0.5,
-              fontSize: "0.7rem",
-            }}
-          >
-            <Link
-              href={uploadedPhoto}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ color: "#2196f3", fontSize: "0.75rem" }}
-            >
-              View Photo
-            </Link>
-          </Typography>
-        </Box>
-      )}
-    </Box>
-    <IconButton size="small" onClick={onEdit} sx={{ color: "#2196f3" }}>
-      <EditIcon fontSize="small" />
-    </IconButton>
-  </Paper>
-);

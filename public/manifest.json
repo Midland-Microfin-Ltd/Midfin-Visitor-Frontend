@@ -1,8 +1,7 @@
-
 {
-  "name": "Midland Visitor Registration",
-  "short_name": "Visitor App",
-  "description": "Secure visitor registration system",
+  "name": "Visitor Tool",
+  "short_name": "VisitorTool",
+  "description": "Visitor Registration System",
   "start_url": "/#/register",
   "scope": "/",
   "display": "standalone",
@@ -22,15 +21,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "New Registration",
-      "short_name": "Register",
-      "description": "Register as a visitor",
-      "url": "/#/register",
-      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
     }
   ]
 }
