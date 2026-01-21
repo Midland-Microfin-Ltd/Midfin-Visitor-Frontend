@@ -63,7 +63,7 @@ export const downloadPassAsImage = async (passRef, passData, showSnackbar = null
     link.href = imageData;
     link.download = `visitor-pass-${passData?.passNumber || "pass"}-${
       new Date().toISOString().split("T")[0]
-    }.png`;
+    }.jpg`;
 
     document.body.appendChild(link);
     link.click();
