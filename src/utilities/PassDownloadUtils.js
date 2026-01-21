@@ -12,76 +12,75 @@ import html2canvas from "html2canvas";
  * @param {Function} showSnackbar - Optional function to show notifications
  * @returns {Promise<boolean>} - Success status
  */
-export const downloadPassAsImage = async (passRef, passData, showSnackbar = null) => {
+export const downloadPassAsImage = async (
+  passRef,
+  passData,
+  showSnackbar = null
+) => {
   try {
-    // Use the ref to get the pass component
     const cardElement = passRef.current;
     if (!cardElement) {
-      if (showSnackbar) {
-        showSnackbar("Pass card not found!", "error");
-      }
+      showSnackbar?.("Pass card not found!", "error");
       return false;
     }
 
-    // Clone the card element for manipulation
+    // Wait for fonts (VERY IMPORTANT for mobile)
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+
+    // Clone card
     const clonedCard = cardElement.cloneNode(true);
-    clonedCard.style.position = "fixed";
-    clonedCard.style.top = "0";
-    clonedCard.style.left = "0";
-    clonedCard.style.zIndex = "9999";
-    clonedCard.style.transform = "scale(1)";
-    clonedCard.style.boxShadow = "0 25px 70px rgba(102, 126, 234, 0.4)";
-    clonedCard.style.visibility = "visible";
-    clonedCard.style.opacity = "1";
+
+    // iOS & Android SAFE styles
+    clonedCard.style.position = "absolute";
+    clonedCard.style.top = "-10000px";
+    clonedCard.style.left = "-10000px";
     clonedCard.style.width = "460px";
     clonedCard.style.maxWidth = "460px";
+    clonedCard.style.opacity = "1";
+    clonedCard.style.visibility = "visible";
+    clonedCard.style.transform = "none";
+    clonedCard.style.background = "#ffffff";
+    clonedCard.style.boxShadow = "none";
 
     document.body.appendChild(clonedCard);
 
-    // Create canvas from the element
     const canvas = await html2canvas(clonedCard, {
-      scale: 3,
-      useCORS: true,
+      scale: Math.min(window.devicePixelRatio || 2, 2),
       backgroundColor: "#ffffff",
+      useCORS: true,
       logging: false,
-      allowTaint: true,
-      foreignObjectRendering: true,
-      imageTimeout: 0,
+      imageTimeout: 15000,
       removeContainer: true,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: 460,
       width: 460,
       height: clonedCard.offsetHeight,
-      windowWidth: 460,
-      windowHeight: clonedCard.offsetHeight,
     });
 
-    // Clean up the cloned element
     document.body.removeChild(clonedCard);
 
-    // Convert to data URL and trigger download
+    // Convert to image
     const imageData = canvas.toDataURL("image/png", 1.0);
+
+    // iOS SAFARI FIX
     const link = document.createElement("a");
     link.href = imageData;
     link.download = `visitor-pass-${passData?.passNumber || "pass"}-${
       new Date().toISOString().split("T")[0]
-    }.jpg`;
+    }.png`;
 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    // Show success message if callback provided
-    if (showSnackbar) {
-      showSnackbar("Pass image downloaded successfully!", "success");
-    }
-
+    showSnackbar?.("Pass image downloaded successfully!", "success");
     return true;
   } catch (error) {
-    console.error("Error downloading pass image:", error);
-    
-    if (showSnackbar) {
-      showSnackbar("Error downloading pass image", "error");
-    }
-    
+    console.error("Download error:", error);
+    showSnackbar?.("Error downloading pass image", "error");
     return false;
   }
 };
