@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useRef,
-  useCallback,
-  useMemo,
-  useEffect,
-} from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Box,
   Card,
@@ -30,6 +24,15 @@ import {
   Stack,
   Alert,
   Link,
+  Avatar,
+  useTheme,
+  useMediaQuery,
+  Fab,
+  MobileStepper,
+  CardActionArea,
+  Dialog,
+  DialogContent,
+  CircularProgress,
 } from "@mui/material";
 import {
   Phone as PhoneIcon,
@@ -45,22 +48,97 @@ import {
   Refresh as RefreshIcon,
   CameraAlt as CameraAltIcon,
   DeleteOutline as DeleteOutlineIcon,
-  CloudUpload as CloudUploadIcon,
+  CameraEnhance as CameraEnhanceIcon,
+  PersonPin as PersonPinIcon,
+  Schedule as ScheduleIcon,
+  FactCheck as FactCheckIcon,
+  QrCodeScanner as QrCodeScannerIcon,
+  WifiTethering as WifiTetheringIcon,
+  FlashOn as FlashOnIcon,
+  Animation as AnimationIcon,
+  Download as DownloadIcon,
+  Print as PrintIcon,
+  VerifiedUser as VerifiedUserIcon,
+  Fingerprint as FingerprintIcon,
+  ArrowBack as ArrowBackIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import {
   sendOtp,
   verifyOtp,
   submitVisitorSelfie,
   submitVisitorRequest,
+  generateVisitorPass,
 } from "../../utilities/apiUtils/apiHelper";
+import { keyframes } from "@emotion/react";
+import VisitorPass from "../Passess/VisitorPassmaker";
+import html2canvas from "html2canvas";
+import {
+  downloadPassAsImage,
+  formatPassData,
+} from "../../utilities/PassDownloadUtils";
+
+// Animation keyframes
+const pulse = keyframes`
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+`;
+
+const float = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+`;
+
+const shimmer = keyframes`
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+`;
+
+const glow = keyframes`
+  0%, 100% { box-shadow: 0 0 10px rgba(33, 150, 243, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(33, 150, 243, 0.8), 0 0 30px rgba(33, 150, 243, 0.4); }
+`;
+
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+`;
 
 const PURPOSES = [
-  { id: "business", label: "Business Meeting", icon: "💼" },
-  { id: "interview", label: "Interview", icon: "👔" },
-  { id: "delivery", label: "Delivery", icon: "📦" },
-  { id: "maintenance", label: "Maintenance", icon: "🔧" },
-  { id: "event", label: "Event/Conference", icon: "🎤" },
-  { id: "other", label: "Other", icon: "📋" },
+  { id: "business", label: "Business", icon: "💼", color: "#2196f3" },
+  { id: "interview", label: "Interview", icon: "👔", color: "#4caf50" },
+  { id: "delivery", label: "Delivery", icon: "📦", color: "#ff9800" },
+  { id: "maintenance", label: "Maintenance", icon: "🔧", color: "#795548" },
+  { id: "event", label: "Event", icon: "🎤", color: "#9c27b0" },
+  { id: "other", label: "Other", icon: "📋", color: "#607d8b" },
 ];
 
 const DEPARTMENTS = [
@@ -79,8 +157,18 @@ const STEPS = [
   "Photo",
   "Purpose",
   "Details",
-  "Meeting Info",
+  "Meeting",
   "Review",
+];
+
+// Mobile-optimized step labels
+const MOBILE_STEPS = [
+  { label: "Verify", icon: <PhoneIcon /> },
+  { label: "Photo", icon: <CameraAltIcon /> },
+  { label: "Purpose", icon: <BusinessCenterIcon /> },
+  { label: "Details", icon: <PersonIcon /> },
+  { label: "Meeting", icon: <MeetingRoomIcon /> },
+  { label: "Review", icon: <FactCheckIcon /> },
 ];
 
 // Initial form state
@@ -101,11 +189,13 @@ const INITIAL_FORM_DATA = {
   photoPreview: null,
 };
 
-// Camera component
-const CameraComponent = ({ onCapture, onCancel }) => {
+// Enhanced Camera Component
+const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
   const videoRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [error, setError] = useState("");
+  const [flash, setFlash] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     startCamera();
@@ -120,8 +210,8 @@ const CameraComponent = ({ onCapture, onCancel }) => {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: isMobile ? 480 : 640 },
+          height: { ideal: isMobile ? 640 : 480 },
         },
       });
 
@@ -131,7 +221,7 @@ const CameraComponent = ({ onCapture, onCancel }) => {
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
-      setError("Unable to access camera. Please check camera permissions.");
+      setError("Camera access denied. Please allow camera permissions.");
     }
   };
 
@@ -139,6 +229,20 @@ const CameraComponent = ({ onCapture, onCancel }) => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
     }
+  };
+
+  const startCountdown = () => {
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          capturePhoto();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const capturePhoto = () => {
@@ -149,34 +253,69 @@ const CameraComponent = ({ onCapture, onCancel }) => {
       const canvas = document.createElement("canvas");
       const video = videoRef.current;
 
-      // Set canvas dimensions to match video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
       const ctx = canvas.getContext("2d");
 
-      // Draw video frame to canvas
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (flash) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
 
-      // Convert to data URL
+      ctx.save();
+      ctx.scale(-1, 1); 
+      ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      ctx.restore();
+
       const photoData = canvas.toDataURL("image/jpeg");
 
-      // Stop camera
       stopCamera();
-
-      // Pass photo data to parent
       onCapture(photoData);
     }
+  };
+
+  const toggleFlash = () => {
+    setFlash(!flash);
   };
 
   if (error) {
     return (
       <Box sx={{ textAlign: "center", p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Avatar
+          sx={{
+            width: 80,
+            height: 80,
+            bgcolor: "rgba(244, 67, 54, 0.1)",
+            mb: 2,
+            mx: "auto",
+          }}
+        >
+          <CameraAltIcon sx={{ fontSize: 40, color: "#f44336" }} />
+        </Avatar>
+        <Alert
+          severity="error"
+          sx={{
+            mb: 2,
+            borderRadius: 3,
+            background: "rgba(244, 67, 54, 0.1)",
+            border: "1px solid rgba(244, 67, 54, 0.3)",
+          }}
+        >
           {error}
         </Alert>
-        <Button variant="outlined" onClick={onCancel}>
-          Cancel
+        <Button
+          variant="contained"
+          onClick={onCancel}
+          sx={{
+            background: "linear-gradient(135deg, #f44336 0%, #d32f2f 100%)",
+            color: "white",
+            borderRadius: 3,
+            px: 4,
+            py: 1.5,
+          }}
+        >
+          Go Back
         </Button>
       </Box>
     );
@@ -184,39 +323,142 @@ const CameraComponent = ({ onCapture, onCancel }) => {
 
   return (
     <Box>
-      <Box sx={{ position: "relative", width: "100%", height: 300, mb: 2 }}>
+      <Box sx={{ position: "relative", mb: 3 }}>
+        {/* Countdown overlay */}
+        {countdown > 0 && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              background: "rgba(0, 0, 0, 0.7)",
+              borderRadius: 2,
+            }}
+          >
+            <Typography
+              variant="h1"
+              sx={{
+                color: "white",
+                fontSize: 80,
+                fontWeight: 700,
+                animation: `${pulse} 1s infinite`,
+              }}
+            >
+              {countdown}
+            </Typography>
+          </Box>
+        )}
+
         <video
           ref={videoRef}
           autoPlay
           playsInline
           style={{
             width: "100%",
-            height: "100%",
+            height: isMobile ? "50vh" : 400,
             objectFit: "cover",
-            borderRadius: "8px",
-            transform: "scaleX(-1)", // Mirror the video
+            borderRadius: 16,
+            transform: "scaleX(-1)",
+          }}
+        />
+
+        {/* Camera overlay grid */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: "none",
+            background: `
+              linear-gradient(to right, transparent 48%, rgba(255,255,255,0.1) 48%, rgba(255,255,255,0.1) 52%, transparent 52%),
+              linear-gradient(to bottom, transparent 48%, rgba(255,255,255,0.1) 48%, rgba(255,255,255,0.1) 52%, transparent 52%)
+            `,
+            borderRadius: 16,
+          }}
+        />
+
+        {/* Face outline animation */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: "20%",
+            left: "25%",
+            right: "25%",
+            bottom: "20%",
+            border: "3px dashed rgba(33, 150, 243, 0.6)",
+            borderRadius: "50%",
+            animation: `${glow} 2s infinite`,
+            pointerEvents: "none",
           }}
         />
       </Box>
-      <Box sx={{ display: "flex", gap: 2 }}>
+
+      {/* Camera controls */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: isMobile ? 2 : 3,
+          flexWrap: "wrap",
+        }}
+      >
         <Button
-          fullWidth
           variant="contained"
-          startIcon={<CameraAltIcon />}
-          onClick={capturePhoto}
+          startIcon={<FlashOnIcon />}
+          onClick={toggleFlash}
           sx={{
-            background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-            color: "white",
+            background: flash
+              ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)"
+              : "rgba(255, 255, 255, 0.1)",
+            color: flash ? "white" : "rgba(255, 255, 255, 0.7)",
+            borderRadius: 3,
+            px: 3,
+            py: 1.5,
+            minWidth: isMobile ? "auto" : 120,
           }}
         >
-          Capture Photo
+          {flash ? "ON" : "Flash"}
         </Button>
+
+        <Fab
+          color="primary"
+          onClick={startCountdown}
+          sx={{
+            width: isMobile ? 70 : 80,
+            height: isMobile ? 70 : 80,
+            background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+            animation: `${pulse} 2s infinite`,
+            "&:hover": {
+              background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+            },
+          }}
+        >
+          <CameraAltIcon sx={{ fontSize: isMobile ? 30 : 35 }} />
+        </Fab>
+
         <Button
           variant="outlined"
           onClick={onCancel}
           sx={{
-            color: "#f44336",
-            borderColor: "#f44336",
+            borderColor: "rgba(255, 255, 255, 0.3)",
+            color: "rgba(255, 255, 255, 0.7)",
+            borderRadius: 3,
+            px: 3,
+            py: 1.5,
+            minWidth: isMobile ? "auto" : 120,
+            "&:hover": {
+              borderColor: "#f44336",
+              color: "#f44336",
+            },
           }}
         >
           Cancel
@@ -226,8 +468,212 @@ const CameraComponent = ({ onCapture, onCancel }) => {
   );
 };
 
-// Main VisitorForm component
+// Mobile Bottom Navigation
+const MobileStepNavigation = ({ activeStep, onStepChange, isMobile }) => {
+  if (!isMobile) return null;
+
+  return (
+    <Paper
+      sx={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+        borderRadius: "20px 20px 0 0",
+        px: 1,
+        py: 2,
+      }}
+      elevation={3}
+    >
+      <MobileStepper
+        variant="dots"
+        steps={6}
+        position="static"
+        activeStep={activeStep}
+        sx={{
+          background: "transparent",
+          "& .MuiMobileStepper-dot": {
+            backgroundColor: "rgba(255, 255, 255, 0.3)",
+            width: 8,
+            height: 8,
+            margin: "0 4px",
+          },
+          "& .MuiMobileStepper-dotActive": {
+            backgroundColor: "#2196f3",
+            width: 20,
+            borderRadius: 4,
+          },
+        }}
+      />
+
+      <Box
+        sx={{ display: "flex", justifyContent: "space-between", px: 2, mt: 1 }}
+      >
+        {MOBILE_STEPS.map((step, index) => (
+          <Box
+            key={index}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 0.5,
+              opacity: index === activeStep ? 1 : 0.3,
+              transition: "all 0.3s ease",
+              transform: index === activeStep ? "translateY(-5px)" : "none",
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 40,
+                height: 40,
+                background:
+                  index === activeStep
+                    ? "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)"
+                    : "rgba(255, 255, 255, 0.05)",
+                color:
+                  index === activeStep ? "white" : "rgba(255, 255, 255, 0.3)",
+                mb: 0.5,
+              }}
+            >
+              {step.icon}
+            </Avatar>
+            <Typography
+              variant="caption"
+              sx={{
+                color:
+                  index === activeStep ? "#2196f3" : "rgba(255, 255, 255, 0.3)",
+                fontWeight: index === activeStep ? 600 : 400,
+                fontSize: 10,
+                textAlign: "center",
+              }}
+            >
+              {step.label}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Paper>
+  );
+};
+
+// Review Item Component for Mobile
+const ReviewItemMobile = ({
+  label,
+  value,
+  subValue,
+  icon,
+  uploadedPhoto,
+  color = "#2196f3",
+  onEdit,
+}) => (
+  <Paper
+    sx={{
+      p: 2,
+      background: "rgba(255, 255, 255, 0.05)",
+      borderLeft: `4px solid ${color}`,
+      borderRadius: 2,
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 2,
+      transition: "all 0.3s ease",
+      "&:hover": {
+        background: "rgba(255, 255, 255, 0.08)",
+        transform: "translateX(4px)",
+      },
+    }}
+  >
+    <Avatar
+      sx={{
+        width: 40,
+        height: 40,
+        bgcolor: `${color}20`,
+        color: color,
+      }}
+    >
+      {icon}
+    </Avatar>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Typography
+        variant="caption"
+        sx={{ color: "rgba(255, 255, 255, 0.6)", display: "block", mb: 0.5 }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{ color: "white", fontWeight: 500, mb: subValue ? 0.5 : 0 }}
+      >
+        {value}
+      </Typography>
+      {subValue && (
+        <Typography
+          variant="body2"
+          sx={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "0.875rem" }}
+        >
+          {subValue}
+        </Typography>
+      )}
+      {uploadedPhoto && label === "Visitor Photo" && (
+        <Box sx={{ mt: 1 }}>
+          <img
+            src={uploadedPhoto}
+            alt="Uploaded selfie"
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: `2px solid ${color}`,
+            }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "https://via.placeholder.com/60";
+            }}
+          />
+          <Link
+            href={uploadedPhoto}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: color,
+              fontSize: "0.75rem",
+              display: "inline-block",
+              mt: 0.5,
+              textDecoration: "none",
+              "&:hover": {
+                textDecoration: "underline",
+              },
+            }}
+          >
+            View Photo
+          </Link>
+        </Box>
+      )}
+    </Box>
+    {onEdit && (
+      <IconButton
+        size="small"
+        onClick={onEdit}
+        sx={{
+          color: color,
+          alignSelf: "center",
+          "&:hover": {
+            background: "rgba(33, 150, 243, 0.1)",
+          },
+        }}
+      >
+        <EditIcon fontSize="small" />
+      </IconButton>
+    )}
+  </Paper>
+);
+
+// Main VisitorForm Component
 export default function VisitorForm() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
@@ -241,6 +687,12 @@ export default function VisitorForm() {
   const [isUploadingSelfie, setIsUploadingSelfie] = useState(false);
   const [selfieResponse, setSelfieResponse] = useState(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState(null);
+  const [passData, setPassData] = useState(null);
+  const [passVisible, setPassVisible] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [generatingPass, setGeneratingPass] = useState(false);
+  const [generatedVisitorId, setGeneratedVisitorId] = useState(null);
+  const passRef = useRef(null);
 
   const fileInputRef = useRef(null);
 
@@ -251,8 +703,11 @@ export default function VisitorForm() {
   const canProceedToReview =
     formData.personToMeet && formData.department && formData.visitDuration;
 
-  // Format phone number
-  const formatPhoneNumber = (phone) => phone.replace(/\D/g, "");
+  // Generate pass number
+  const generatePassNumber = () => {
+    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    return `VP-${randomNum}`;
+  };
 
   // Handlers
   const handlePhoneChange = (e) => {
@@ -277,7 +732,7 @@ export default function VisitorForm() {
     setErrorMessage("");
 
     try {
-      const formattedPhone = formatPhoneNumber(formData.phone);
+      const formattedPhone = formData.phone.replace(/\D/g, "");
       const response = await sendOtp({ phoneNo: formattedPhone });
 
       const txnIdValue =
@@ -305,7 +760,7 @@ export default function VisitorForm() {
       setErrorMessage(
         error.response?.data?.message ||
           error.message ||
-          "Failed to send OTP. Please try again."
+          "Failed to send OTP. Please try again.",
       );
     } finally {
       setIsSendingOtp(false);
@@ -344,7 +799,7 @@ export default function VisitorForm() {
       setErrorMessage(
         error.response?.data?.message ||
           error.message ||
-          "Invalid OTP. Please try again."
+          "Invalid OTP. Please try again.",
       );
     } finally {
       setIsVerifying(false);
@@ -370,7 +825,6 @@ export default function VisitorForm() {
   };
 
   const handleCapturePhoto = (photoData) => {
-    // Convert data URL to blob
     fetch(photoData)
       .then((res) => res.blob())
       .then((blob) => {
@@ -408,7 +862,6 @@ export default function VisitorForm() {
     }
   };
 
-  // Upload selfie API call
   const uploadSelfie = async () => {
     if (!formData.photo) {
       setErrorMessage("Please select a photo first.");
@@ -433,7 +886,7 @@ export default function VisitorForm() {
       setErrorMessage(
         error.response?.data?.message ||
           error.message ||
-          "Failed to upload photo. Please try again."
+          "Failed to upload photo. Please try again.",
       );
       return false;
     } finally {
@@ -457,7 +910,6 @@ export default function VisitorForm() {
       return;
     }
 
-    // Upload selfie when clicking continue
     const uploadSuccess = await uploadSelfie();
 
     if (uploadSuccess) {
@@ -467,7 +919,7 @@ export default function VisitorForm() {
 
   const handlePurposeSelect = (purposeId) => {
     setFormData({ ...formData, purpose: purposeId });
-    setTimeout(() => setActiveStep(3), 600);
+    setTimeout(() => setActiveStep(3), 400);
   };
 
   const handleChange = (field) => (e) => {
@@ -487,10 +939,9 @@ export default function VisitorForm() {
     setIsSubmitting(true);
     setErrorMessage("");
 
-    // Prepare visitor data according to API requirements
     const visitorData = {
-      visitorType: "external", // Default to external as per your form
-      visitType: "personal", // Changed to "personal" as per API example
+      visitorType: "external",
+      visitType: "personal",
       firstName: formData.fullName.split(" ")[0] || formData.fullName,
       lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
       phoneNo: formData.phone,
@@ -499,23 +950,25 @@ export default function VisitorForm() {
       visitPurpose: selectedPurpose?.label || formData.purpose || "Other",
       department: formData.department,
       personToMeet: formData.personToMeet,
-      officeId: 1, // Default office ID - update as needed
-      registerdBy: "self", // Self registration
-      // Additional fields that might be needed
+      officeId: 1,
+      registerdBy: "self",
       company: formData.company || "",
-      // visitorId is NOT included in body - will be URL parameter
     };
 
     try {
-      // Pass visitorId as first parameter and visitorData as second
+      // Step 1: Submit visitor request
       const response = await submitVisitorRequest(
         selfieResponse.visitorId,
-        visitorData
+        visitorData,
       );
 
       if (response?.success || response?.data?.success) {
-        // Success - show thank you message
-        setIsSubmitted(true);
+        // Store the visitor ID
+        const visitorId = selfieResponse.visitorId;
+        setGeneratedVisitorId(visitorId);
+
+        // Step 2: Generate visitor pass immediately
+        await handleGeneratePass(visitorId);
       } else {
         throw new Error(response?.message || "Failed to submit registration");
       }
@@ -524,12 +977,70 @@ export default function VisitorForm() {
       setErrorMessage(
         error.response?.data?.message ||
           error.message ||
-          "Failed to submit registration. Please try again."
+          "Failed to submit registration. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleGeneratePass = async (visitorId) => {
+    setGeneratingPass(true);
+    setErrorMessage("");
+
+    try {
+      const response = await generateVisitorPass({
+        visitorId: visitorId,
+      });
+
+      if (response.success) {
+        // Use the utility function to format pass data
+        const formattedPassData = formatPassData(
+          formData,
+          response.data,
+          selectedPurpose,
+        );
+
+        setPassData(formattedPassData);
+        setIsSubmitted(true);
+
+        // Show pass with animation
+        setTimeout(() => {
+          setPassVisible(true);
+        }, 300);
+
+        // Show action buttons after pass animation
+        setTimeout(() => {
+          setShowActions(true);
+        }, 1000);
+      } else {
+        throw new Error(response?.message || "Failed to generate pass");
+      }
+    } catch (error) {
+      console.error("[API] Error generating pass:", error);
+      setErrorMessage(
+        error.response?.data?.message ||
+          error.message ||
+          "Error generating visitor pass. Please try again.",
+      );
+    } finally {
+      setGeneratingPass(false);
+    }
+  };
+
+  const handleDownloadPass = async () => {
+  try {
+    setErrorMessage("");
+    await downloadPassAsImage(passRef, passData, setErrorMessage);
+    
+    // Show success message
+    setErrorMessage("Pass downloaded successfully!");
+    setTimeout(() => setErrorMessage(""), 3000);
+  } catch (error) {
+    console.error("Download error:", error);
+    setErrorMessage("Failed to download pass. Please try again.");
+  }
+};
 
   const handleFillAnother = () => {
     setIsSubmitted(false);
@@ -541,78 +1052,187 @@ export default function VisitorForm() {
     setShowCamera(false);
     setSelfieResponse(null);
     setUploadedPhotoUrl(null);
+    setPassData(null);
+    setPassVisible(false);
+    setShowActions(false);
+    setGeneratedVisitorId(null);
   };
 
-  if (isSubmitted) {
+  const handleStepChange = (step) => {
+    if (step < 0 || step > 5) return;
+
+    // Check validations before moving
+    if (step > activeStep) {
+      if (step === 1 && (!formData.verified || !formData.termsAccepted)) {
+        setErrorMessage("Please verify phone and accept terms first");
+        return;
+      }
+      if (step === 2 && !formData.photo) {
+        setErrorMessage("Please upload a photo first");
+        return;
+      }
+      if (step === 3 && !formData.purpose) {
+        setErrorMessage("Please select a purpose");
+        return;
+      }
+      if (step === 4 && !canProceedToMeetingInfo) {
+        setErrorMessage("Please fill all personal details");
+        return;
+      }
+      if (step === 5 && !canProceedToReview) {
+        setErrorMessage("Please fill all meeting details");
+        return;
+      }
+    }
+
+    setActiveStep(step);
+  };
+
+  if (isSubmitted && passData) {
     return (
       <Box
         sx={{
           minHeight: "100vh",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          p: { xs: 2, sm: 3 },
-          background:
-            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          p: isMobile ? 2 : 4,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <Zoom in timeout={800}>
-          <Card
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background:
+              "radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%)",
+            animation: `${float} 10s ease-in-out infinite`,
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background:
+              "radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%)",
+            animation: `${float} 8s ease-in-out infinite reverse`,
+          }}
+        />
+
+        <Box
+          sx={{
+            animation: `${fadeInUp} 1s ease-out`,
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            maxWidth: isMobile ? "100%" : "460px",
+            mb: 4,
+          }}
+        >
+          <VisitorPass
+            passData={passData}
+            visible={passVisible}
+            downloadRef={passRef}
+          />
+        </Box>
+
+        <Fade in={showActions} timeout={500}>
+          <Box
             sx={{
-              width: "100%",
-              maxWidth: { xs: "100%", sm: 500 },
-              background: "rgba(255, 255, 255, 0.03)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: { xs: 3, sm: 4 },
-              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-              p: { xs: 3, sm: 5 },
-              textAlign: "center",
+              display: "flex",
+              gap: 2,
+              flexWrap: "wrap",
+              justifyContent: "center",
+              mt: 3,
+              animation: `${fadeInUp} 0.5s ease-out`,
             }}
           >
-            <CheckCircleIcon
-              sx={{ fontSize: { xs: 80, sm: 100 }, color: "#4caf50", mb: 3 }}
-            />
-            <Typography
-              variant="h4"
-              sx={{ color: "white", fontWeight: 700, mb: 2 }}
-            >
-              Thank You!
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{ color: "rgba(255, 255, 255, 0.9)", mb: 4 }}
-            >
-              Thanks for your valuable time. After review and approval we will
-              provide you a pass.
-            </Typography>
             <Button
-              fullWidth
               variant="contained"
-              onClick={handleFillAnother}
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadPass}
               sx={{
                 background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                 color: "white",
-                p: { xs: 1.25, sm: 1.5 },
+                borderRadius: 3,
+                px: 3,
+                py: 1.5,
                 fontWeight: 600,
-                fontSize: { xs: "0.9rem", sm: "1rem" },
-                borderRadius: 2,
-                textTransform: "none",
                 "&:hover": {
                   background:
                     "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                  boxShadow: "0 8px 24px rgba(33, 150, 243, 0.4)",
                 },
               }}
             >
-              Fill Another Form
+              Download Pass
             </Button>
-          </Card>
-        </Zoom>
+            <Button
+              variant="outlined"
+              onClick={handleFillAnother}
+              sx={{
+                borderColor: "#667eea",
+                color: "#667eea",
+                borderRadius: 3,
+                px: 3,
+                py: 1.5,
+                fontWeight: 600,
+                "&:hover": {
+                  borderColor: "#764ba2",
+                  color: "#764ba2",
+                  background: "rgba(102, 126, 234, 0.05)",
+                },
+              }}
+            >
+              Register Another
+            </Button>
+          </Box>
+        </Fade>
+        {generatingPass && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(0, 0, 0, 0.7)",
+              zIndex: 10,
+            }}
+          >
+            <Box
+              sx={{
+                textAlign: "center",
+                p: 4,
+                background: "white",
+                borderRadius: 3,
+              }}
+            >
+              <CircularProgress size={60} sx={{ mb: 2, color: "#667eea" }} />
+              <Typography variant="h6" sx={{ color: "#333", fontWeight: 600 }}>
+                Generating Visitor Pass...
+              </Typography>
+              <Typography variant="body2" sx={{ color: "#666", mt: 1 }}>
+                Please wait while we create your digital pass
+              </Typography>
+            </Box>
+          </Box>
+        )}
       </Box>
     );
   }
 
+  // Main Form View
   return (
     <Box
       sx={{
@@ -622,94 +1242,200 @@ export default function VisitorForm() {
         justifyContent: "center",
         background:
           "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
-        p: { xs: 1, sm: 2 },
+        p: isMobile ? 0 : 2,
+        pb: isMobile ? 8 : 0,
       }}
     >
       <Card
         sx={{
           width: "100%",
-          maxWidth: { xs: "100%", sm: 500 },
+          maxWidth: isMobile ? "100%" : 500,
+          minHeight: isMobile ? "100vh" : "auto",
           background: "rgba(255, 255, 255, 0.05)",
           backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
-          borderRadius: { xs: 2, sm: 4 },
+          border: isMobile ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+          borderRadius: isMobile ? 0 : 4,
+          boxShadow: isMobile ? "none" : "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
-          <Typography
-            variant="h4"
+        {/* Mobile Header */}
+        {isMobile && (
+          <Paper
             sx={{
-              textAlign: "center",
-              color: "white",
-              fontWeight: 700,
-              mb: 1,
-              fontSize: { xs: "1.5rem", sm: "2rem" },
-              background: "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              position: "sticky",
+              top: 0,
+              zIndex: 100,
+              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+              p: 2,
+              borderRadius: 0,
             }}
+            elevation={0}
           >
-            Visitor Registration
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              textAlign: "center",
-              color: "rgba(255, 255, 255, 0.6)",
-              mb: 4,
-              fontSize: { xs: "0.8rem", sm: "0.875rem" },
-            }}
-          >
-            Welcome! Please complete the registration process
-          </Typography>
-
-          {/* Stepper */}
-          <Box sx={{ mb: 4 }}>
-            <Stepper
-              activeStep={activeStep}
-              alternativeLabel
-              sx={{ display: { xs: "none", sm: "flex" } }}
-            >
-              {STEPS.map((label) => (
-                <Step key={label}>
-                  <StepLabel sx={{ color: "white" }}>{label}</StepLabel>
-                </Step>
-              ))}
-            </Stepper>
             <Box
               sx={{
-                display: { xs: "flex", sm: "none" },
+                display: "flex",
+                alignItems: "center",
                 justifyContent: "center",
-                gap: 1,
-                mb: 3,
               }}
             >
-              {STEPS.map((_, index) => (
+              <Box sx={{ width: 40, visibility: "hidden" }} />
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "1.1rem",
+                  background:
+                    "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Visitor Registration
+              </Typography>
+              <Box sx={{ width: 40 }} />
+            </Box>
+
+            {/* Progress bar */}
+            <Box sx={{ mt: 2 }}>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: 6,
+                  bgcolor: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                }}
+              >
                 <Box
-                  key={index}
                   sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor:
-                      index === activeStep
-                        ? "#2196f3"
-                        : index < activeStep
-                        ? "#4caf50"
-                        : "rgba(255, 255, 255, 0.3)",
+                    width: `${(activeStep / 5) * 100}%`,
+                    height: "100%",
+                    background:
+                      "linear-gradient(90deg, #2196f3 0%, #64b5f6 100%)",
+                    transition: "width 0.3s ease",
+                    borderRadius: 3,
                   }}
                 />
-              ))}
+              </Box>
+              <Box
+                sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ color: "rgba(255, 255, 255, 0.6)" }}
+                >
+                  Step {activeStep + 1} of 6
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ color: "#2196f3", fontWeight: 600 }}
+                >
+                  {STEPS[activeStep]}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
+          </Paper>
+        )}
+
+        <CardContent
+          sx={{
+            p: isMobile ? 2 : 4,
+            flex: 1,
+            pb: isMobile ? 10 : 4,
+          }}
+        >
+          {!isMobile && (
+            <>
+              <Typography
+                variant="h4"
+                sx={{
+                  textAlign: "center",
+                  color: "white",
+                  fontWeight: 700,
+                  mb: 1,
+                  fontSize: { xs: "1.5rem", sm: "2rem" },
+                  background:
+                    "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Visitor Registration
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  textAlign: "center",
+                  color: "rgba(255, 255, 255, 0.6)",
+                  mb: 4,
+                  fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                }}
+              >
+                Welcome! Please complete the registration process
+              </Typography>
+
+              {/* Desktop Stepper */}
+              <Box sx={{ mb: 4 }}>
+                <Stepper
+                  activeStep={activeStep}
+                  alternativeLabel
+                  sx={{
+                    "& .MuiStepLabel-root .Mui-completed": {
+                      color: "#4caf50",
+                    },
+                    "& .MuiStepLabel-root .Mui-active": {
+                      color: "#2196f3",
+                    },
+                    "& .MuiStepLabel-root .MuiStepLabel-alternativeLabel": {
+                      color: "rgba(255, 255, 255, 0.5)",
+                      marginTop: "8px",
+                    },
+                  }}
+                >
+                  {STEPS.map((label) => (
+                    <Step key={label}>
+                      <StepLabel
+                        sx={{
+                          "& .MuiStepLabel-label": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                            fontSize: "0.8rem",
+                            "&.Mui-active": {
+                              color: "#2196f3",
+                              fontWeight: 600,
+                            },
+                            "&.Mui-completed": {
+                              color: "#4caf50",
+                            },
+                          },
+                        }}
+                      >
+                        {label}
+                      </StepLabel>
+                    </Step>
+                  ))}
+                </Stepper>
+              </Box>
+            </>
+          )}
 
           {/* Error Message */}
           {errorMessage && (
             <Fade in>
               <Alert
                 severity="error"
-                sx={{ mb: 2 }}
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                  background: "rgba(244, 67, 54, 0.1)",
+                  border: "1px solid rgba(244, 67, 54, 0.3)",
+                  "& .MuiAlert-icon": {
+                    color: "#f44336",
+                  },
+                }}
                 onClose={() => setErrorMessage("")}
               >
                 {errorMessage}
@@ -719,38 +1445,45 @@ export default function VisitorForm() {
 
           {/* Step 0: Phone Verification */}
           {activeStep === 0 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <PhoneIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Verify Your Phone
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    {!formData.otpSent
-                      ? "Enter your phone number to receive OTP"
-                      : "Enter the OTP sent to your phone"}
-                  </Typography>
-                </Box>
+            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+              <Box sx={{ textAlign: "center", mb: 3 }}>
+                <Avatar
+                  sx={{
+                    width: isMobile ? 80 : 100,
+                    height: isMobile ? 80 : 100,
+                    background:
+                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    mb: 2,
+                    mx: "auto",
+                    animation: `${float} 3s ease-in-out infinite`,
+                  }}
+                >
+                  <PhoneIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                </Avatar>
+                <Typography
+                  variant={isMobile ? "h5" : "h6"}
+                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                >
+                  Phone Verification
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    px: isMobile ? 2 : 0,
+                  }}
+                >
+                  Enter your phone number to receive OTP
+                </Typography>
+              </Box>
 
+              <Box sx={{ position: "relative" }}>
                 <TextField
                   fullWidth
                   label="Phone Number"
                   value={formData.phone}
                   onChange={handlePhoneChange}
-                  placeholder="Enter 10 digit phone number"
+                  placeholder="10 digit mobile number"
                   disabled={formData.verified || formData.otpSent}
                   InputProps={{
                     startAdornment: (
@@ -767,11 +1500,15 @@ export default function VisitorForm() {
                     "& .MuiOutlinedInput-root": {
                       backgroundColor: "rgba(255, 255, 255, 0.05)",
                       color: "white",
+                      borderRadius: 3,
                       "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
                       "&:hover fieldset": {
                         borderColor: "rgba(33, 150, 243, 0.5)",
                       },
-                      "&.Mui-focused fieldset": { borderColor: "#2196f3" },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#2196f3",
+                        boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
+                      },
                     },
                     "& .MuiInputLabel-root": {
                       color: "rgba(255, 255, 255, 0.7)",
@@ -790,15 +1527,27 @@ export default function VisitorForm() {
                       background:
                         "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                       color: "white",
-                      p: 1.5,
+                      py: isMobile ? 1.5 : 2,
+                      borderRadius: 3,
+                      fontSize: isMobile ? "1rem" : "1.1rem",
                       fontWeight: 600,
+                      animation: isSendingOtp ? "none" : `${pulse} 2s infinite`,
                       "&:hover": {
                         background:
                           "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
                       },
                     }}
                   >
-                    {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+                    {isSendingOtp ? (
+                      <>
+                        <WifiTetheringIcon
+                          sx={{ mr: 1, animation: `${shimmer} 1s infinite` }}
+                        />
+                        Sending OTP...
+                      </>
+                    ) : (
+                      "Send OTP"
+                    )}
                   </Button>
                 )}
 
@@ -810,7 +1559,7 @@ export default function VisitorForm() {
                         label="Enter OTP"
                         value={formData.otp}
                         onChange={handleOtpChange}
-                        placeholder="Enter 4-digit code"
+                        placeholder="4 digit code"
                         inputProps={{ maxLength: 4 }}
                         InputProps={{
                           startAdornment: (
@@ -824,6 +1573,7 @@ export default function VisitorForm() {
                           "& .MuiOutlinedInput-root": {
                             backgroundColor: "rgba(255, 255, 255, 0.05)",
                             color: "white",
+                            borderRadius: 3,
                             "& fieldset": {
                               borderColor: "rgba(255, 255, 255, 0.2)",
                             },
@@ -845,11 +1595,29 @@ export default function VisitorForm() {
                             background:
                               "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
                             color: "white",
-                            p: 1.5,
+                            py: isMobile ? 1.5 : 2,
+                            borderRadius: 3,
+                            fontSize: isMobile ? "1rem" : "1.1rem",
                             fontWeight: 600,
+                            "&:hover": {
+                              background:
+                                "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
+                            },
                           }}
                         >
-                          {isVerifying ? "Verifying..." : "Verify OTP"}
+                          {isVerifying ? (
+                            <>
+                              <FingerprintIcon
+                                sx={{
+                                  mr: 1,
+                                  animation: `${shimmer} 1s infinite`,
+                                }}
+                              />
+                              Verifying...
+                            </>
+                          ) : (
+                            "Verify OTP"
+                          )}
                         </Button>
                         <Button
                           fullWidth
@@ -864,6 +1632,8 @@ export default function VisitorForm() {
                               resendCountdown > 0
                                 ? "rgba(255, 255, 255, 0.5)"
                                 : "#2196f3",
+                            borderRadius: 3,
+                            minWidth: 0,
                           }}
                         >
                           {resendCountdown > 0
@@ -887,14 +1657,23 @@ export default function VisitorForm() {
                           display: "flex",
                           alignItems: "center",
                           gap: 2,
+                          borderRadius: 3,
                         }}
                       >
-                        <CheckCircleIcon sx={{ color: "#4caf50" }} />
+                        <Avatar
+                          sx={{
+                            bgcolor: "rgba(76, 175, 80, 0.2)",
+                            width: 40,
+                            height: 40,
+                          }}
+                        >
+                          <VerifiedUserIcon sx={{ color: "#4caf50" }} />
+                        </Avatar>
                         <Box>
                           <Typography
                             sx={{ color: "#4caf50", fontWeight: 600 }}
                           >
-                            Phone Verified!
+                            Phone Verified Successfully!
                           </Typography>
                           <Typography
                             variant="body2"
@@ -912,13 +1691,19 @@ export default function VisitorForm() {
                             onChange={handleTermsChange}
                             sx={{
                               color: "rgba(255, 255, 255, 0.5)",
-                              "&.Mui-checked": { color: "#2196f3" },
+                              "&.Mui-checked": {
+                                color: "#2196f3",
+                                animation: `${pulse} 1s`,
+                              },
                             }}
                           />
                         }
                         label={
                           <Typography
-                            sx={{ color: "rgba(255, 255, 255, 0.7)" }}
+                            sx={{
+                              color: "rgba(255, 255, 255, 0.7)",
+                              fontSize: isMobile ? "0.9rem" : "1rem",
+                            }}
                           >
                             I accept the terms and conditions
                           </Typography>
@@ -928,278 +1713,314 @@ export default function VisitorForm() {
                   </Fade>
                 )}
               </Box>
-            </Zoom>
+            </Box>
           )}
 
           {/* Step 1: Photo Upload */}
           {activeStep === 1 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <CameraAltIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Upload Your Photo
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    {showCamera
-                      ? "Position yourself and click capture"
-                      : "Take a photo or upload from your device"}
-                  </Typography>
-                </Box>
+            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+              {showCamera ? (
+                <CameraComponent
+                  onCapture={handleCapturePhoto}
+                  onCancel={handleCancelCamera}
+                  isMobile={isMobile}
+                />
+              ) : (
+                <>
+                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                    <Avatar
+                      sx={{
+                        width: isMobile ? 80 : 100,
+                        height: isMobile ? 80 : 100,
+                        background:
+                          "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                        mb: 2,
+                        mx: "auto",
+                        animation: `${float} 3s ease-in-out infinite`,
+                      }}
+                    >
+                      <CameraEnhanceIcon
+                        sx={{ fontSize: isMobile ? 40 : 50 }}
+                      />
+                    </Avatar>
+                    <Typography
+                      variant={isMobile ? "h5" : "h6"}
+                      sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                    >
+                      Visitor Photo
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "rgba(255, 255, 255, 0.6)",
+                        px: isMobile ? 2 : 0,
+                      }}
+                    >
+                      Take a clear photo of your face for visitor identification
+                    </Typography>
+                  </Box>
 
-                {showCamera ? (
-                  <CameraComponent
-                    onCapture={handleCapturePhoto}
-                    onCancel={handleCancelCamera}
-                  />
-                ) : (
-                  <>
-                    {!formData.photoPreview ? (
-                      <Box
+                  {!formData.photoPreview ? (
+                    <Box
+                      sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+                    >
+                      {/* Take Photo Button */}
+                      <CardActionArea
+                        onClick={handleStartCamera}
                         sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: 2,
+                          borderRadius: 3,
+                          overflow: "hidden",
+                          animation: `${glow} 2s infinite`,
                         }}
                       >
-                        <Box
+                        <Card
                           sx={{
-                            width: 200,
-                            height: 200,
-                            borderRadius: "50%",
-                            border: "3px dashed #2196f3",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            background: "rgba(33, 150, 243, 0.1)",
+                            background:
+                              "linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(33, 150, 243, 0.1) 100%)",
+                            border: "2px dashed rgba(33, 150, 243, 0.5)",
+                            p: isMobile ? 4 : 6,
+                            textAlign: "center",
                             "&:hover": {
-                              background: "rgba(33, 150, 243, 0.2)",
+                              background:
+                                "linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(33, 150, 243, 0.2) 100%)",
                             },
                           }}
-                          onClick={handleStartCamera}
                         >
                           <CameraAltIcon
-                            sx={{ fontSize: 60, color: "#2196f3" }}
-                          />
-                        </Box>
-
-                        <Typography
-                          sx={{ color: "white", textAlign: "center" }}
-                        >
-                          Click to take a photo with camera
-                        </Typography>
-
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            width: "100%",
-                            my: 2,
-                          }}
-                        >
-                          <Box
                             sx={{
-                              flex: 1,
-                              height: 1,
-                              background: "rgba(255, 255, 255, 0.2)",
+                              fontSize: isMobile ? 60 : 80,
+                              color: "#2196f3",
+                              mb: 2,
                             }}
                           />
                           <Typography
-                            sx={{ px: 2, color: "rgba(255, 255, 255, 0.6)" }}
+                            variant="h6"
+                            sx={{ color: "white", fontWeight: 600, mb: 1 }}
                           >
-                            OR
+                            Take Photo
                           </Typography>
-                          <Box
-                            sx={{
-                              flex: 1,
-                              height: 1,
-                              background: "rgba(255, 255, 255, 0.2)",
-                            }}
-                          />
-                        </Box>
+                          <Typography
+                            variant="body2"
+                            sx={{ color: "rgba(255, 255, 255, 0.6)" }}
+                          >
+                            Use camera for instant capture
+                          </Typography>
+                        </Card>
+                      </CardActionArea>
 
+                      {/* Hidden file input for upload */}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        style={{ display: "none" }}
+                        onChange={handleFileUpload}
+                      />
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: isMobile ? 200 : 250,
+                          height: isMobile ? 200 : 250,
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                          border: "4px solid #2196f3",
+                          position: "relative",
+                          animation: `${pulse} 2s infinite`,
+                        }}
+                      >
+                        <img
+                          src={formData.photoPreview}
+                          alt="Preview"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                        <CheckCircleIcon
+                          sx={{
+                            position: "absolute",
+                            bottom: 10,
+                            right: 10,
+                            color: "#4caf50",
+                            bgcolor: "white",
+                            borderRadius: "50%",
+                            fontSize: isMobile ? 30 : 40,
+                            p: 0.5,
+                          }}
+                        />
+                      </Box>
+
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "white",
+                          textAlign: "center",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Photo Ready!
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.6)",
+                          textAlign: "center",
+                        }}
+                      >
+                        Your photo has been captured successfully
+                      </Typography>
+
+                      <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
                         <Button
                           fullWidth
                           variant="outlined"
-                          startIcon={<CloudUploadIcon />}
-                          onClick={() => fileInputRef.current.click()}
+                          startIcon={<DeleteOutlineIcon />}
+                          onClick={deletePhoto}
                           sx={{
-                            color: "#2196f3",
-                            borderColor: "rgba(33, 150, 243, 0.5)",
-                            p: 1.5,
+                            color: "#f44336",
+                            borderColor: "#f44336",
+                            py: isMobile ? 1.25 : 1.5,
+                            borderRadius: 3,
                             "&:hover": {
-                              borderColor: "#2196f3",
-                              background: "rgba(33, 150, 243, 0.1)",
+                              background: "rgba(244, 67, 54, 0.1)",
                             },
                           }}
                         >
-                          Upload from Device
+                          Retake
                         </Button>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          ref={fileInputRef}
-                          style={{ display: "none" }}
-                          onChange={handleFileUpload}
-                        />
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: 3,
-                        }}
-                      >
-                        <Box
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          onClick={handlePhotoContinue}
+                          disabled={isUploadingSelfie}
                           sx={{
-                            width: 200,
-                            height: 200,
-                            borderRadius: "50%",
-                            overflow: "hidden",
-                            border: "3px solid #2196f3",
-                            position: "relative",
-                          }}
-                        >
-                          <img
-                            src={formData.photoPreview}
-                            alt="Preview"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                          <CheckCircleIcon
-                            sx={{
-                              position: "absolute",
-                              bottom: 8,
-                              right: 8,
-                              color: "#4caf50",
-                              bgcolor: "white",
-                              borderRadius: "50%",
-                              fontSize: 30,
-                            }}
-                          />
-                        </Box>
-
-                        <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
-                          <Button
-                            fullWidth
-                            variant="outlined"
-                            startIcon={<DeleteOutlineIcon />}
-                            onClick={deletePhoto}
-                            sx={{
-                              color: "#f44336",
-                              borderColor: "#f44336",
-                              "&:hover": {
-                                background: "rgba(244, 67, 54, 0.1)",
-                              },
-                            }}
-                          >
-                            Retake
-                          </Button>
-                          <Button
-                            fullWidth
-                            variant="contained"
-                            onClick={handlePhotoContinue}
-                            disabled={isUploadingSelfie}
-                            sx={{
+                            background: isUploadingSelfie
+                              ? "rgba(33, 150, 243, 0.5)"
+                              : "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                            color: "white",
+                            py: isMobile ? 1.25 : 1.5,
+                            borderRadius: 3,
+                            fontSize: isMobile ? "1rem" : "1.1rem",
+                            fontWeight: 600,
+                            "&:hover": {
                               background: isUploadingSelfie
                                 ? "rgba(33, 150, 243, 0.5)"
-                                : "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                              color: "white",
-                              "&:hover": {
-                                background: isUploadingSelfie
-                                  ? "rgba(33, 150, 243, 0.5)"
-                                  : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                              },
-                            }}
-                          >
-                            {isUploadingSelfie ? "Uploading..." : "Continue"}
-                          </Button>
-                        </Box>
+                                : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                            },
+                          }}
+                        >
+                          {isUploadingSelfie ? (
+                            <>
+                              <WifiTetheringIcon
+                                sx={{
+                                  mr: 1,
+                                  animation: `${shimmer} 1s infinite`,
+                                }}
+                              />
+                              Uploading...
+                            </>
+                          ) : (
+                            "Continue"
+                          )}
+                        </Button>
                       </Box>
-                    )}
-                  </>
-                )}
-              </Box>
-            </Zoom>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
           )}
 
           {/* Step 2: Purpose Selection */}
           {activeStep === 2 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <BusinessCenterIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Purpose of Visit
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Select the reason for your visit today
-                  </Typography>
-                </Box>
+            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+              <Box sx={{ textAlign: "center", mb: 3 }}>
+                <Avatar
+                  sx={{
+                    width: isMobile ? 80 : 100,
+                    height: isMobile ? 80 : 100,
+                    background:
+                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    mb: 2,
+                    mx: "auto",
+                    animation: `${float} 3s ease-in-out infinite`,
+                  }}
+                >
+                  <BusinessCenterIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                </Avatar>
+                <Typography
+                  variant={isMobile ? "h5" : "h6"}
+                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                >
+                  Purpose of Visit
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    px: isMobile ? 2 : 0,
+                  }}
+                >
+                  Select the primary reason for your visit
+                </Typography>
+              </Box>
 
-                <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-                  {PURPOSES.map((purpose) => (
-                    <Grid item xs={6} key={purpose.id}>
-                      <Paper
-                        onClick={() => handlePurposeSelect(purpose.id)}
+              <Grid container spacing={isMobile ? 1.5 : 2}>
+                {PURPOSES.map((purpose) => (
+                  <Grid item xs={6} key={purpose.id}>
+                    <CardActionArea
+                      onClick={() => handlePurposeSelect(purpose.id)}
+                    >
+                      <Card
                         sx={{
-                          p: { xs: 1.5, sm: 2.5 },
+                          p: isMobile ? 2 : 3,
                           textAlign: "center",
-                          cursor: "pointer",
+                          height: "100%",
+                          minHeight: isMobile ? 120 : 140,
                           background:
                             formData.purpose === purpose.id
-                              ? "linear-gradient(135deg, rgba(33, 150, 243, 0.3) 0%, rgba(3, 169, 244, 0.2) 100%)"
+                              ? `linear-gradient(135deg, ${purpose.color}40 0%, ${purpose.color}20 100%)`
                               : "rgba(255, 255, 255, 0.05)",
                           border:
                             formData.purpose === purpose.id
-                              ? "2px solid #2196f3"
+                              ? `2px solid ${purpose.color}`
                               : "1px solid rgba(255, 255, 255, 0.1)",
                           transition: "all 0.3s ease",
+                          borderRadius: 3,
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          alignItems: "center",
                           "&:hover": {
-                            background:
-                              "linear-gradient(135deg, rgba(33, 150, 243, 0.2) 0%, rgba(3, 169, 244, 0.1) 100%)",
                             transform: "translateY(-4px)",
+                            boxShadow: `0 8px 24px ${purpose.color}40`,
                           },
                         }}
                       >
                         <Typography
-                          sx={{ fontSize: { xs: 32, sm: 40 }, mb: 1 }}
+                          sx={{
+                            fontSize: isMobile ? 40 : 48,
+                            mb: 1.5,
+                            animation:
+                              formData.purpose === purpose.id
+                                ? `${float} 2s ease-in-out infinite`
+                                : "none",
+                          }}
                         >
                           {purpose.icon}
                         </Typography>
                         <Typography
-                          variant="body2"
+                          variant={isMobile ? "body2" : "body1"}
                           sx={{
                             color: "white",
                             fontWeight:
@@ -1208,364 +2029,411 @@ export default function VisitorForm() {
                         >
                           {purpose.label}
                         </Typography>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
-            </Zoom>
+                        {formData.purpose === purpose.id && (
+                          <Box
+                            sx={{
+                              mt: 1,
+                              width: 24,
+                              height: 4,
+                              background: purpose.color,
+                              borderRadius: 2,
+                            }}
+                          />
+                        )}
+                      </Card>
+                    </CardActionArea>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
           )}
 
           {/* Step 3: Personal Details */}
           {activeStep === 3 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <PersonIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Personal Details
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Please provide your information
-                  </Typography>
-                </Box>
+            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+              <Box sx={{ textAlign: "center", mb: 3 }}>
+                <Avatar
+                  sx={{
+                    width: isMobile ? 80 : 100,
+                    height: isMobile ? 80 : 100,
+                    background:
+                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    mb: 2,
+                    mx: "auto",
+                    animation: `${float} 3s ease-in-out infinite`,
+                  }}
+                >
+                  <PersonPinIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                </Avatar>
+                <Typography
+                  variant={isMobile ? "h5" : "h6"}
+                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                >
+                  Personal Details
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    px: isMobile ? 2 : 0,
+                  }}
+                >
+                  Please provide your information
+                </Typography>
+              </Box>
 
-                <Stack spacing={2}>
-                  <TextField
-                    fullWidth
-                    label="Full Name"
-                    value={formData.fullName}
-                    onChange={handleChange("fullName")}
-                    placeholder="Enter Full Name"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
+              <Stack spacing={isMobile ? 2 : 2.5}>
+                <TextField
+                  fullWidth
+                  label="Full Name"
+                  value={formData.fullName}
+                  onChange={handleChange("fullName")}
+                  placeholder="Enter your full name"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon sx={{ color: "#2196f3" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
                       },
-                    }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Company"
-                    value={formData.company}
-                    onChange={handleChange("company")}
-                    placeholder="Enter Your Company Name"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <BusinessIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(33, 150, 243, 0.5)",
                       },
-                    }}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Government ID"
-                    value={formData.governmentId}
-                    onChange={handleChange("governmentId")}
-                    placeholder="Enter Any Government ID Number"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <BadgeIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#2196f3",
+                        boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
                       },
-                    }}
-                  />
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "rgba(255, 255, 255, 0.7)",
+                    },
+                  }}
+                />
 
+                <TextField
+                  fullWidth
+                  label="Company/Organization"
+                  value={formData.company}
+                  onChange={handleChange("company")}
+                  placeholder="Enter company name"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BusinessIcon sx={{ color: "#2196f3" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(33, 150, 243, 0.5)",
+                      },
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Government ID Number"
+                  value={formData.governmentId}
+                  onChange={handleChange("governmentId")}
+                  placeholder="Aadhar, PAN, Driving License, etc."
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeIcon sx={{ color: "#2196f3" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(33, 150, 243, 0.5)",
+                      },
+                    },
+                  }}
+                />
+
+                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={() => setActiveStep(4)}
+                    onClick={() => handleStepChange(activeStep + 1)}
                     disabled={!canProceedToMeetingInfo}
                     endIcon={<ArrowForwardIcon />}
                     sx={{
-                      mt: 2,
                       background:
                         "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                       color: "white",
-                      p: 1.5,
+                      py: isMobile ? 1.25 : 1.5,
+                      borderRadius: 3,
+                      fontSize: isMobile ? "1rem" : "1.1rem",
                       fontWeight: 600,
                       "&:hover": {
                         background:
                           "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
                       },
+                      "&:disabled": {
+                        background: "rgba(255, 255, 255, 0.1)",
+                        color: "rgba(255, 255, 255, 0.3)",
+                      },
                     }}
                   >
                     Continue
                   </Button>
-                </Stack>
-              </Box>
-            </Zoom>
+                </Box>
+              </Stack>
+            </Box>
           )}
 
           {/* Step 4: Meeting Information */}
           {activeStep === 4 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <MeetingRoomIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#2196f3",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Meeting Information
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Who are you here to meet?
-                  </Typography>
-                </Box>
+            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+              <Box sx={{ textAlign: "center", mb: 3 }}>
+                <Avatar
+                  sx={{
+                    width: isMobile ? 80 : 100,
+                    height: isMobile ? 80 : 100,
+                    background:
+                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    mb: 2,
+                    mx: "auto",
+                    animation: `${float} 3s ease-in-out infinite`,
+                  }}
+                >
+                  <MeetingRoomIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                </Avatar>
+                <Typography
+                  variant={isMobile ? "h5" : "h6"}
+                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                >
+                  Meeting Details
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    px: isMobile ? 2 : 0,
+                  }}
+                >
+                  Who are you here to meet?
+                </Typography>
+              </Box>
 
-                <Stack spacing={2}>
-                  <TextField
-                    fullWidth
-                    label="Person to Meet"
-                    value={formData.personToMeet}
-                    onChange={handleChange("personToMeet")}
-                    placeholder="Enter Person Name You are Meeting"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PersonIcon sx={{ color: "#2196f3" }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& fieldset": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                        "&.Mui-focused fieldset": { borderColor: "#2196f3" },
+              <Stack spacing={isMobile ? 2 : 2.5}>
+                <TextField
+                  fullWidth
+                  label="Person to Meet"
+                  value={formData.personToMeet}
+                  onChange={handleChange("personToMeet")}
+                  placeholder="Enter person's name"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon sx={{ color: "#2196f3" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
                       },
-                      "& .MuiInputLabel-root": {
-                        color: "rgba(255, 255, 255, 0.7)",
-                        "&.Mui-focused": { color: "#2196f3" },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(33, 150, 243, 0.5)",
                       },
-                    }}
-                  />
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#2196f3",
+                        boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "rgba(255, 255, 255, 0.7)",
+                    },
+                  }}
+                />
 
-                  <FormControl fullWidth>
-                    <InputLabel
-                      sx={{
+                <FormControl fullWidth>
+                  <InputLabel
+                    sx={{
+                      color: "rgba(255, 255, 255, 0.7)",
+                      "&.Mui-focused": { color: "#2196f3" },
+                    }}
+                  >
+                    Department
+                  </InputLabel>
+                  <Select
+                    value={formData.department}
+                    label="Department"
+                    onChange={handleChange("department")}
+                    sx={{
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(33, 150, 243, 0.5)",
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#2196f3",
+                      },
+                      "& .MuiSelect-icon": {
                         color: "rgba(255, 255, 255, 0.7)",
-                        "&.Mui-focused": { color: "#2196f3" },
-                      }}
-                    >
-                      Department
-                    </InputLabel>
-                    <Select
-                      value={formData.department}
-                      label="Department"
-                      onChange={handleChange("department")}
-                      sx={{
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2196f3",
-                        },
-                        "& .MuiSelect-icon": {
-                          color: "rgba(255, 255, 255, 0.7)",
-                        },
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
-                            background:
-                              "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
-                            backdropFilter: "blur(20px)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                            borderRadius: "8px",
-                            marginTop: "4px",
-                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
-                            "& .MuiMenuItem-root": {
-                              color: "rgba(255, 255, 255, 0.9)",
-                              backgroundColor: "transparent",
-                              "&:hover": {
-                                backgroundColor: "rgba(33, 150, 243, 0.2)",
-                              },
-                              "&.Mui-selected": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
-                                "&:hover": {
-                                  backgroundColor: "rgba(33, 150, 243, 0.4)",
-                                },
-                              },
-                              "&.Mui-focusVisible": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
-                              },
-                            },
-                          },
-                        },
-                      }}
-                    >
-                      {DEPARTMENTS.map((dept) => (
-                        <MenuItem
-                          key={dept}
-                          value={dept}
-                          sx={{
+                      },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          background:
+                            "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                          backdropFilter: "blur(20px)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: "12px",
+                          marginTop: "4px",
+                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.5)",
+                          maxHeight: isMobile ? 300 : 400,
+                          "& .MuiMenuItem-root": {
                             color: "rgba(255, 255, 255, 0.9)",
+                            backgroundColor: "transparent",
+                            padding: "12px 16px",
                             "&:hover": {
                               backgroundColor: "rgba(33, 150, 243, 0.2)",
                             },
-                          }}
-                        >
-                          {dept}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  <FormControl fullWidth>
-                    <InputLabel
-                      sx={{
-                        color: "rgba(255, 255, 255, 0.7)",
-                        "&.Mui-focused": { color: "#2196f3" },
-                      }}
-                    >
-                      Visit Duration
-                    </InputLabel>
-                    <Select
-                      value={formData.visitDuration}
-                      label="Visit Duration"
-                      onChange={handleChange("visitDuration")}
-                      sx={{
-                        backgroundColor: "rgba(255, 255, 255, 0.05)",
-                        color: "white",
-                        "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(255, 255, 255, 0.2)",
-                        },
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "rgba(33, 150, 243, 0.5)",
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2196f3",
-                        },
-                        "& .MuiSelect-icon": {
-                          color: "rgba(255, 255, 255, 0.7)",
-                        },
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: {
-                            background:
-                              "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
-                            backdropFilter: "blur(20px)",
-                            border: "1px solid rgba(255, 255, 255, 0.1)",
-                            borderRadius: "8px",
-                            marginTop: "4px",
-                            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
-                            "& .MuiMenuItem-root": {
-                              color: "rgba(255, 255, 255, 0.9)",
-                              backgroundColor: "transparent",
+                            "&.Mui-selected": {
+                              backgroundColor: "rgba(33, 150, 243, 0.3)",
                               "&:hover": {
-                                backgroundColor: "rgba(33, 150, 243, 0.2)",
-                              },
-                              "&.Mui-selected": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
-                                "&:hover": {
-                                  backgroundColor: "rgba(33, 150, 243, 0.4)",
-                                },
-                              },
-                              "&.Mui-focusVisible": {
-                                backgroundColor: "rgba(33, 150, 243, 0.3)",
+                                backgroundColor: "rgba(33, 150, 243, 0.4)",
                               },
                             },
                           },
                         },
-                      }}
-                    >
-                      <MenuItem value="1">1 Day</MenuItem>
-                      <MenuItem value="2">2 Days</MenuItem>
-                      <MenuItem value="3">3 Days</MenuItem>
-                      <MenuItem value="5">5 Days</MenuItem>
-                      <MenuItem value="7">1 Week</MenuItem>
-                      <MenuItem value="14">2 Weeks</MenuItem>
-                      <MenuItem value="30">1 Month</MenuItem>
-                    </Select>
-                  </FormControl>
+                      },
+                    }}
+                  >
+                    {DEPARTMENTS.map((dept) => (
+                      <MenuItem
+                        key={dept}
+                        value={dept}
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.9)",
+                          "&:hover": {
+                            backgroundColor: "rgba(33, 150, 243, 0.2)",
+                          },
+                        }}
+                      >
+                        {dept}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
+                <FormControl fullWidth>
+                  <InputLabel
+                    sx={{
+                      color: "rgba(255, 255, 255, 0.7)",
+                      "&.Mui-focused": { color: "#2196f3" },
+                    }}
+                  >
+                    Visit Duration
+                  </InputLabel>
+                  <Select
+                    value={formData.visitDuration}
+                    label="Visit Duration"
+                    onChange={handleChange("visitDuration")}
+                    sx={{
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(33, 150, 243, 0.5)",
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#2196f3",
+                      },
+                      "& .MuiSelect-icon": {
+                        color: "rgba(255, 255, 255, 0.7)",
+                      },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          background:
+                            "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                          backdropFilter: "blur(20px)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: "12px",
+                          marginTop: "4px",
+                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.5)",
+                          "& .MuiMenuItem-root": {
+                            color: "rgba(255, 255, 255, 0.9)",
+                            backgroundColor: "transparent",
+                            padding: "12px 16px",
+                            "&:hover": {
+                              backgroundColor: "rgba(33, 150, 243, 0.2)",
+                            },
+                            "&.Mui-selected": {
+                              backgroundColor: "rgba(33, 150, 243, 0.3)",
+                              "&:hover": {
+                                backgroundColor: "rgba(33, 150, 243, 0.4)",
+                              },
+                            },
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    <MenuItem value="1">1 Day</MenuItem>
+                    <MenuItem value="2">2 Days</MenuItem>
+                    <MenuItem value="3">3 Days</MenuItem>
+                    <MenuItem value="5">5 Days</MenuItem>
+                    <MenuItem value="7">1 Week</MenuItem>
+                    <MenuItem value="14">2 Weeks</MenuItem>
+                    <MenuItem value="30">1 Month</MenuItem>
+                  </Select>
+                </FormControl>
+
+                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={() => setActiveStep(5)}
+                    onClick={() => handleStepChange(activeStep + 1)}
                     disabled={!canProceedToReview}
                     endIcon={<ArrowForwardIcon />}
                     sx={{
-                      mt: 2,
                       background:
                         "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                       color: "white",
-                      p: 1.5,
+                      py: isMobile ? 1.25 : 1.5,
+                      borderRadius: 3,
+                      fontSize: isMobile ? "1rem" : "1.1rem",
                       fontWeight: 600,
                       "&:hover": {
                         background:
@@ -1579,87 +2447,131 @@ export default function VisitorForm() {
                   >
                     Continue to Review
                   </Button>
-                </Stack>
-              </Box>
-            </Zoom>
+                </Box>
+              </Stack>
+            </Box>
           )}
 
           {/* Step 5: Review */}
           {activeStep === 5 && (
-            <Zoom in timeout={500}>
-              <Box>
-                <Box sx={{ textAlign: "center", mb: 3 }}>
-                  <CheckCircleIcon
-                    sx={{
-                      fontSize: { xs: 48, sm: 60 },
-                      color: "#4caf50",
-                      mb: 2,
-                    }}
-                  />
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                  >
-                    Review Your Information
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                  >
-                    Please verify all details before submitting
-                  </Typography>
-                </Box>
+            <Box
+              sx={{
+                animation: `${fadeInUp} 0.5s ease-out`,
+                ...(isMobile && {
+                  maxHeight: "calc(100vh - 220px)",
+                  overflowY: "auto",
+                  pb: 6,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                    marginRight: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(33, 150, 243, 0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(33, 150, 243, 0.1)",
+                    "&:hover": {
+                      background: "rgba(33, 150, 243, 0.5)",
+                    },
+                  },
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                  pr: "2px",
+                }),
+              }}
+            >
+              <Box sx={{ textAlign: "center", mb: 3 }}>
+                <Avatar
+                  sx={{
+                    width: isMobile ? 80 : 100,
+                    height: isMobile ? 80 : 100,
+                    background:
+                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    mb: 2,
+                    mx: "auto",
+                  }}
+                >
+                  <FactCheckIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                </Avatar>
+                <Typography
+                  variant={isMobile ? "h5" : "h6"}
+                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                >
+                  Review & Submit
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(255, 255, 255, 0.6)",
+                    px: isMobile ? 2 : 0,
+                  }}
+                >
+                  Please verify all details before submitting
+                </Typography>
+              </Box>
 
-                <Stack spacing={2}>
-                  <ReviewItem
-                    label="Phone Number"
-                    value={formData.phone}
-                    onEdit={() => handleEdit(0)}
-                  />
-                  <ReviewItem
-                    label="Photo"
-                    value={selfieResponse ? "Uploaded ✓" : "Not uploaded"}
-                    subValue={
-                      selfieResponse
-                        ? `Visitor ID: ${selfieResponse.visitorId}`
-                        : undefined
-                    }
-                    onEdit={() => handleEdit(1)}
-                    uploadedPhoto={uploadedPhotoUrl}
-                  />
-                  <ReviewItem
-                    label="Purpose of Visit"
-                    value={selectedPurpose?.label}
-                    onEdit={() => handleEdit(2)}
-                  />
-                  <ReviewItem
-                    label="Personal Details"
-                    value={formData.fullName}
-                    subValue={`${formData.company} | ID: ${formData.governmentId}`}
-                    onEdit={() => handleEdit(3)}
-                  />
-                  <ReviewItem
-                    label="Meeting Details"
-                    value={formData.personToMeet}
-                    subValue={`${formData.department} | Duration: ${
-                      formData.visitDuration
-                    } ${formData.visitDuration === "1" ? "Day" : "Days"}`}
-                    onEdit={() => handleEdit(4)}
-                  />
+              <Stack spacing={2}>
+                <ReviewItemMobile
+                  label="Phone Number"
+                  value={formData.phone}
+                  icon={<PhoneIcon />}
+                  onEdit={() => handleEdit(0)}
+                />
+                <ReviewItemMobile
+                  label="Visitor Photo"
+                  value={selfieResponse ? "Uploaded ✓" : "Not uploaded"}
+                  subValue={
+                    selfieResponse
+                      ? `Visitor ID: ${selfieResponse.visitorId}`
+                      : undefined
+                  }
+                  icon={<CameraAltIcon />}
+                  onEdit={() => handleEdit(1)}
+                  uploadedPhoto={uploadedPhotoUrl}
+                />
+                <ReviewItemMobile
+                  label="Purpose of Visit"
+                  value={selectedPurpose?.label}
+                  icon={<BusinessCenterIcon />}
+                  onEdit={() => handleEdit(2)}
+                  color={selectedPurpose?.color}
+                />
+                <ReviewItemMobile
+                  label="Personal Details"
+                  value={formData.fullName}
+                  subValue={`${formData.company} | ID: ${formData.governmentId}`}
+                  icon={<PersonIcon />}
+                  onEdit={() => handleEdit(3)}
+                />
+                <ReviewItemMobile
+                  label="Meeting Details"
+                  value={formData.personToMeet}
+                  subValue={`${formData.department} | Duration: ${
+                    formData.visitDuration
+                  } ${formData.visitDuration === "1" ? "Day" : "Days"}`}
+                  icon={<MeetingRoomIcon />}
+                  onEdit={() => handleEdit(4)}
+                />
+
+                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                   <Button
                     fullWidth
                     variant="contained"
                     onClick={handleSubmit}
                     disabled={isSubmitting || !selfieResponse}
                     sx={{
-                      mt: 3,
                       background:
                         isSubmitting || !selfieResponse
                           ? "rgba(33, 150, 243, 0.5)"
                           : "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
                       color: "white",
-                      p: 1.5,
+                      py: isMobile ? 1.25 : 1.5,
+                      borderRadius: 3,
+                      fontSize: isMobile ? "1rem" : "1.1rem",
                       fontWeight: 600,
+                      animation: isSubmitting ? "none" : `${pulse} 2s infinite`,
                       "&:hover": {
                         background:
                           isSubmitting || !selfieResponse
@@ -1668,91 +2580,47 @@ export default function VisitorForm() {
                       },
                     }}
                   >
-                    {isSubmitting ? "Submitting..." : "Submit Registration"}
+                    {isSubmitting ? (
+                      <>
+                        <WifiTetheringIcon
+                          sx={{ mr: 1, animation: `${shimmer} 1s infinite` }}
+                        />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Generate Visitor Pass"
+                    )}
                   </Button>
-                </Stack>
-              </Box>
-            </Zoom>
+                </Box>
+              </Stack>
+            </Box>
           )}
         </CardContent>
 
-        <Box
-          sx={{
-            textAlign: "center",
-            py: 2,
-            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ color: "rgba(255, 255, 255, 0.5)" }}
+        {!isMobile && (
+          <Box
+            sx={{
+              textAlign: "center",
+              py: 2,
+              borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
           >
-            Powered by Midland Microfin Limited
-          </Typography>
-        </Box>
+            <Typography
+              variant="caption"
+              sx={{ color: "rgba(255, 255, 255, 0.5)" }}
+            >
+              Powered by Midland Microfin Limited
+            </Typography>
+          </Box>
+        )}
       </Card>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileStepNavigation
+        activeStep={activeStep}
+        onStepChange={handleStepChange}
+        isMobile={isMobile}
+      />
     </Box>
   );
 }
-
-// Updated ReviewItem component to show uploaded photo
-const ReviewItem = ({ label, value, subValue, onEdit, uploadedPhoto }) => (
-  <Paper
-    sx={{
-      p: 2,
-      background: "rgba(255, 255, 255, 0.05)",
-      border: "1px solid rgba(255, 255, 255, 0.1)",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-  >
-    <Box sx={{ flex: 1 }}>
-      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.6)" }}>
-        {label}
-      </Typography>
-      <Typography sx={{ color: "white", fontWeight: 500 }}>{value}</Typography>
-      {subValue && (
-        <Typography variant="body2" sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
-          {subValue}
-        </Typography>
-      )}
-      {/* Show uploaded photo preview for photo section */}
-      {uploadedPhoto && label === "Photo" && (
-        <Box sx={{ mt: 1 }}>
-          <img
-            src={uploadedPhoto}
-            alt="Uploaded selfie"
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: "50%",
-              objectFit: "cover",
-              border: "2px solid #2196f3",
-            }}
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = "https://via.placeholder.com/60";
-            }}
-          />
-          <Typography
-            variant="caption"
-            sx={{ color: "#2196f3", display: "block", mt: 0.5 }}
-          >
-            <Link
-              href={uploadedPhoto}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ color: "#2196f3", fontSize: "0.75rem" }}
-            >
-              View Photo
-            </Link>
-          </Typography>
-        </Box>
-      )}
-    </Box>
-    <IconButton size="small" onClick={onEdit} sx={{ color: "#2196f3" }}>
-      <EditIcon fontSize="small" />
-    </IconButton>
-  </Paper>
-);
