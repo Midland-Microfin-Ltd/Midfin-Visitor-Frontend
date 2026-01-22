@@ -17,7 +17,6 @@ import {
   FormControl,
   InputLabel,
   Fade,
-  Zoom,
   IconButton,
   InputAdornment,
   Paper,
@@ -30,8 +29,6 @@ import {
   Fab,
   MobileStepper,
   CardActionArea,
-  Dialog,
-  DialogContent,
   CircularProgress,
 } from "@mui/material";
 import {
@@ -78,7 +75,6 @@ import {
   formatPassData,
 } from "../../utilities/PassDownloadUtils";
 
-// Animation keyframes
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.05); opacity: 0.8; }
@@ -171,7 +167,6 @@ const MOBILE_STEPS = [
   { label: "Review", icon: <FactCheckIcon /> },
 ];
 
-// Initial form state
 const INITIAL_FORM_DATA = {
   phone: "",
   otp: "",
@@ -189,7 +184,6 @@ const INITIAL_FORM_DATA = {
   photoPreview: null,
 };
 
-// Enhanced Camera Component
 const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
   const videoRef = useRef(null);
   const [stream, setStream] = useState(null);
@@ -197,11 +191,18 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
   const [flash, setFlash] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
+  if (isMobile) {
+    document.body.style.overflow = "hidden";
+  }
+
   useEffect(() => {
     startCamera();
 
     return () => {
       stopCamera();
+      if (isMobile) {
+        document.body.style.overflow = "auto";
+      }
     };
   }, []);
 
@@ -264,7 +265,7 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
       }
 
       ctx.save();
-      ctx.scale(-1, 1); 
+      ctx.scale(-1, 1);
       ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
       ctx.restore();
 
@@ -324,7 +325,6 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
   return (
     <Box>
       <Box sx={{ position: "relative", mb: 3 }}>
-        {/* Countdown overlay */}
         {countdown > 0 && (
           <Box
             sx={{
@@ -368,7 +368,6 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
           }}
         />
 
-        {/* Camera overlay grid */}
         <Box
           sx={{
             position: "absolute",
@@ -1029,18 +1028,18 @@ export default function VisitorForm() {
   };
 
   const handleDownloadPass = async () => {
-  try {
-    setErrorMessage("");
-    await downloadPassAsImage(passRef, passData, setErrorMessage);
-    
-    // Show success message
-    setErrorMessage("Pass downloaded successfully!");
-    setTimeout(() => setErrorMessage(""), 3000);
-  } catch (error) {
-    console.error("Download error:", error);
-    setErrorMessage("Failed to download pass. Please try again.");
-  }
-};
+    try {
+      setErrorMessage("");
+      await downloadPassAsImage(passRef, passData, setErrorMessage);
+
+      // Show success message
+      setErrorMessage("Pass downloaded successfully!");
+      setTimeout(() => setErrorMessage(""), 3000);
+    } catch (error) {
+      console.error("Download error:", error);
+      setErrorMessage("Failed to download pass. Please try again.");
+    }
+  };
 
   const handleFillAnother = () => {
     setIsSubmitted(false);
@@ -1236,14 +1235,14 @@ export default function VisitorForm() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100vh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         background:
           "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         p: isMobile ? 0 : 2,
-        pb: isMobile ? 8 : 0,
+        pb: isMobile ? 0 : 0,
       }}
     >
       <Card
@@ -1320,22 +1319,6 @@ export default function VisitorForm() {
                     borderRadius: 3,
                   }}
                 />
-              </Box>
-              <Box
-                sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{ color: "rgba(255, 255, 255, 0.6)" }}
-                >
-                  Step {activeStep + 1} of 6
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ color: "#2196f3", fontWeight: 600 }}
-                >
-                  {STEPS[activeStep]}
-                </Typography>
               </Box>
             </Box>
           </Paper>
@@ -1730,8 +1713,8 @@ export default function VisitorForm() {
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Avatar
                       sx={{
-                        width: isMobile ? 80 : 100,
-                        height: isMobile ? 80 : 100,
+                        width: isMobile ? 60 : 80,
+                        height: isMobile ? 60 : 80,
                         background:
                           "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                         mb: 2,
@@ -1748,15 +1731,6 @@ export default function VisitorForm() {
                       sx={{ color: "white", fontWeight: 600, mb: 1 }}
                     >
                       Visitor Photo
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "rgba(255, 255, 255, 0.6)",
-                        px: isMobile ? 2 : 0,
-                      }}
-                    >
-                      Take a clear photo of your face for visitor identification
                     </Typography>
                   </Box>
 
@@ -1828,11 +1802,11 @@ export default function VisitorForm() {
                     >
                       <Box
                         sx={{
-                          width: isMobile ? 200 : 250,
-                          height: isMobile ? 200 : 250,
+                          width: isMobile ? 175 : 215,
+                          height: isMobile ? 175 : 215,
                           borderRadius: "50%",
                           overflow: "hidden",
-                          border: "4px solid #2196f3",
+                          border: "2px solid #2196f3",
                           position: "relative",
                           animation: `${pulse} 2s infinite`,
                         }}
@@ -1869,15 +1843,6 @@ export default function VisitorForm() {
                         }}
                       >
                         Photo Ready!
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: "rgba(255, 255, 255, 0.6)",
-                          textAlign: "center",
-                        }}
-                      >
-                        Your photo has been captured successfully
                       </Typography>
 
                       <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
@@ -1947,8 +1912,8 @@ export default function VisitorForm() {
               <Box sx={{ textAlign: "center", mb: 3 }}>
                 <Avatar
                   sx={{
-                    width: isMobile ? 80 : 100,
-                    height: isMobile ? 80 : 100,
+                    width: isMobile ? 60 : 100,
+                    height: isMobile ? 60 : 100,
                     background:
                       "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                     mb: 2,
@@ -2054,8 +2019,8 @@ export default function VisitorForm() {
               <Box sx={{ textAlign: "center", mb: 3 }}>
                 <Avatar
                   sx={{
-                    width: isMobile ? 80 : 100,
-                    height: isMobile ? 80 : 100,
+                    width: isMobile ? 70 : 100,
+                    height: isMobile ? 70 : 100,
                     background:
                       "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                     mb: 2,
@@ -2212,8 +2177,8 @@ export default function VisitorForm() {
               <Box sx={{ textAlign: "center", mb: 3 }}>
                 <Avatar
                   sx={{
-                    width: isMobile ? 80 : 100,
-                    height: isMobile ? 80 : 100,
+                    width: isMobile ? 70 : 100,
+                    height: isMobile ? 70 : 100,
                     background:
                       "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                     mb: 2,
@@ -2571,7 +2536,6 @@ export default function VisitorForm() {
                       borderRadius: 3,
                       fontSize: isMobile ? "1rem" : "1.1rem",
                       fontWeight: 600,
-                      animation: isSubmitting ? "none" : `${pulse} 2s infinite`,
                       "&:hover": {
                         background:
                           isSubmitting || !selfieResponse

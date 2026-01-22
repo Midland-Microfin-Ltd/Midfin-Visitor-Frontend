@@ -1,21 +1,16 @@
-// utilities/PassDownloadUtils.js
 import html2canvas from "html2canvas";
 
 /**
- * Utility functions for downloading Visitor Pass as image
- */
-
 /**
- * Downloads a Visitor Pass as PNG image
- * @param {React.RefObject} passRef - Reference to the pass component
- * @param {Object} passData - Pass data for filename
- * @param {Function} showSnackbar - Optional function to show notifications
- * @returns {Promise<boolean>} - Success status
+ * @param {React.RefObject} passRef 
+ * @param {Object} passData 
+ * @param {Function} showSnackbar 
+ * @returns {Promise<boolean>} 
  */
 export const downloadPassAsImage = async (
   passRef,
   passData,
-  showSnackbar = null
+  showSnackbar = null,
 ) => {
   try {
     const cardElement = passRef.current;
@@ -24,15 +19,12 @@ export const downloadPassAsImage = async (
       return false;
     }
 
-    // Wait for fonts (VERY IMPORTANT for mobile)
     if (document.fonts && document.fonts.ready) {
       await document.fonts.ready;
     }
 
-    // Clone card
     const clonedCard = cardElement.cloneNode(true);
 
-    // iOS & Android SAFE styles
     clonedCard.style.position = "absolute";
     clonedCard.style.top = "-10000px";
     clonedCard.style.left = "-10000px";
@@ -62,10 +54,8 @@ export const downloadPassAsImage = async (
 
     document.body.removeChild(clonedCard);
 
-    // Convert to image
     const imageData = canvas.toDataURL("image/png", 1.0);
 
-    // iOS SAFARI FIX
     const link = document.createElement("a");
     link.href = imageData;
     link.download = `visitor-pass-${passData?.passNumber || "pass"}-${
@@ -86,9 +76,8 @@ export const downloadPassAsImage = async (
 };
 
 /**
- * Opens the Visitor Pass in a new tab for printing
- * @param {React.RefObject} passRef - Reference to the pass component
- * @param {Object} passData - Pass data
+ * @param {React.RefObject} passRef
+ * @param {Object} passData
  */
 export const printPass = (passRef, passData) => {
   try {
@@ -98,15 +87,14 @@ export const printPass = (passRef, passData) => {
       return;
     }
 
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     const cardHTML = cardElement.outerHTML;
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Visitor Pass - ${passData?.passNumber || 'Pass'}</title>
+          <title>Visitor Pass - ${passData?.passNumber || "Pass"}</title>
           <style>
             body {
               margin: 0;
@@ -144,23 +132,27 @@ export const printPass = (passRef, passData) => {
         </body>
       </html>
     `);
-    
+
     printWindow.document.close();
-    
   } catch (error) {
     console.error("Error printing pass:", error);
-    alert("Error opening print preview. Please try downloading the pass instead.");
+    alert(
+      "Error opening print preview. Please try downloading the pass instead.",
+    );
   }
 };
 
 /**
- * Formats pass data for display
- * @param {Object} formData - Form data from the form
- * @param {Object} apiData - Additional data from API response
- * @param {Object} selectedPurpose - Selected purpose object
- * @returns {Object} Formatted pass data
+ * @param {Object} formData
+ * @param {Object} apiData
+ * @param {Object} selectedPurpose
+ * @returns {Object}
  */
-export const formatPassData = (formData, apiData = {}, selectedPurpose = null) => {
+export const formatPassData = (
+  formData,
+  apiData = {},
+  selectedPurpose = null,
+) => {
   const now = new Date();
   const visitDuration = parseInt(formData.visitDuration || 1);
   const endDate = new Date(now.getTime() + visitDuration * 24 * 60 * 60 * 1000);
@@ -170,7 +162,11 @@ export const formatPassData = (formData, apiData = {}, selectedPurpose = null) =
     fullName: formData.fullName || apiData.visitorName || "",
     contactNumber: formData.phone || apiData.phoneNo || "",
     govtId: formData.governmentId || apiData.governmentId || "ID Not Provided",
-    purposeOfVisit: selectedPurpose?.label || formData.purpose || apiData.purposeOfVisit || "Other",
+    purposeOfVisit:
+      selectedPurpose?.label ||
+      formData.purpose ||
+      apiData.purposeOfVisit ||
+      "Other",
     personToMeet: formData.personToMeet || apiData.personToMeet || "",
     validFrom: now.toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -186,14 +182,13 @@ export const formatPassData = (formData, apiData = {}, selectedPurpose = null) =
       hour: "2-digit",
       minute: "2-digit",
     }),
-    ...apiData, // Include any additional data from API
+    ...apiData,
   };
 };
 
 /**
- * Generates initials from a name for avatars
- * @param {string} name - Full name
- * @returns {string} Initials
+ * @param {string} name
+ * @returns {string}
  */
 export const getInitials = (name) => {
   if (!name || typeof name !== "string") return "?";
