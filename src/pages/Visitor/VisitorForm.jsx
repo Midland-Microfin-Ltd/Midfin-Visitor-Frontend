@@ -361,7 +361,7 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
           playsInline
           style={{
             width: "100%",
-            height: isMobile ? "50vh" : 400,
+            height: isMobile ? "40vh" : 400,
             objectFit: "cover",
             borderRadius: 16,
             transform: "scaleX(-1)",
@@ -1477,6 +1477,10 @@ export default function VisitorForm() {
                     endAdornment: formData.verified && (
                       <CheckCircleIcon sx={{ color: "#4caf50" }} />
                     ),
+                    style: { color: "white" },
+                  }}
+                  inputProps={{
+                    style: { color: "white" },
                   }}
                   sx={{
                     mb: 2,
