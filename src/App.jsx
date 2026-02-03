@@ -15,6 +15,7 @@ const Visitors = React.lazy(() => import("./pages/Visitor/Visitors"));
 const VisitorForm = React.lazy(() => import("./pages/Visitor/VisitorForm"));
 const Management = React.lazy(() => import("./pages/Manage/Management"));
 const Passes = React.lazy(() => import("./pages/Passess/GeneratePass"));
+const StatusPass = React.lazy(() => import("./pages/statuspass"));
 
 const Loader = () => (
   <Box
@@ -104,6 +105,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/statuspass/:passId" element={<StatusPass />} /> 
+            <Route path="/statuspass" element={<StatusPass />} /> 
             <Route path="/register/:qrCode" element={<VisitorForm />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
