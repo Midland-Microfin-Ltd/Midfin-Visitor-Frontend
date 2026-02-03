@@ -192,3 +192,19 @@ export const submitVisitorSelfie = async (selfieFile) => {
     throw error;
   }
 };
+
+/**
+ * Get visitor status by ID
+ * @param {string} visitorId
+ * @returns {Promise}
+ */
+export const getVisitorStatus = async (visitorId) => {
+  try {
+    const response = await apiClient.get(
+      `/api/v1/visitor/visitor-pass/${visitorId}`
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};

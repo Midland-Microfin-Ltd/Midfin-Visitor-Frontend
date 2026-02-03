@@ -59,21 +59,12 @@ import {
   Fingerprint as FingerprintIcon,
   ArrowBack as ArrowBackIcon,
   Close as CloseIcon,
+  HourglassEmpty as HourglassEmptyIcon,
+  PendingActions as PendingActionsIcon,
 } from "@mui/icons-material";
-import {
-  sendOtp,
-  verifyOtp,
-  submitVisitorSelfie,
-  submitVisitorRequest,
-  generateVisitorPass,
-} from "../../utilities/apiUtils/apiHelper";
+C
 import { keyframes } from "@emotion/react";
-import VisitorPass from "../Passess/VisitorPassmaker";
-import html2canvas from "html2canvas";
-import {
-  downloadPassAsImage,
-  formatPassData,
-} from "../../utilities/PassDownloadUtils";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 1; }
@@ -131,9 +122,7 @@ const slideIn = keyframes`
 const PURPOSES = [
   { id: "business", label: "Business", icon: "💼", color: "#2196f3" },
   { id: "interview", label: "Interview", icon: "👔", color: "#4caf50" },
-  { id: "delivery", label: "Delivery", icon: "📦", color: "#ff9800" },
-  { id: "maintenance", label: "Maintenance", icon: "🔧", color: "#795548" },
-  { id: "event", label: "Event", icon: "🎤", color: "#9c27b0" },
+  { id: "Meeting", label: "Event", icon: "🎤", color: "#9c27b0" },
   { id: "other", label: "Other", icon: "📋", color: "#607d8b" },
 ];
 
@@ -669,6 +658,25 @@ const ReviewItemMobile = ({
   </Paper>
 );
 
+// Helper function to extract error message from API response
+const extractApiErrorMessage = (error) => {
+  if (error.response?.data) {
+    const apiError = error.response.data;
+
+    if (apiError.errorDescription) {
+      return apiError.errorDescription;
+    } else if (apiError.message) {
+      return apiError.message;
+    } else if (apiError.errorCode === "validationFailed") {
+      return `Validation failed: ${apiError.errorDescription || "Please check all required fields"}`;
+    } else if (apiError.error) {
+      return apiError.error;
+    }
+  }
+
+  return error.message || "An error occurred. Please try again.";
+};
+
 // Main VisitorForm Component
 export default function VisitorForm() {
   const theme = useTheme();
@@ -686,14 +694,11 @@ export default function VisitorForm() {
   const [isUploadingSelfie, setIsUploadingSelfie] = useState(false);
   const [selfieResponse, setSelfieResponse] = useState(null);
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState(null);
-  const [passData, setPassData] = useState(null);
-  const [passVisible, setPassVisible] = useState(false);
-  const [showActions, setShowActions] = useState(false);
-  const [generatingPass, setGeneratingPass] = useState(false);
   const [generatedVisitorId, setGeneratedVisitorId] = useState(null);
-  const passRef = useRef(null);
+  const [submissionSuccess, setSubmissionSuccess] = useState(false);
 
   const fileInputRef = useRef(null);
+  const qrCodeRef = useRef(null);
 
   // Derived values
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
@@ -706,6 +711,20 @@ export default function VisitorForm() {
   const generatePassNumber = () => {
     const randomNum = Math.floor(100000 + Math.random() * 900000);
     return `VP-${randomNum}`;
+  };
+
+  // Download QR Code as image
+  const downloadQRCode = () => {
+    const canvas = qrCodeRef.current?.querySelector('canvas');
+    if (canvas) {
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `visitor-qr-${generatedVisitorId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   // Handlers
@@ -756,11 +775,7 @@ export default function VisitorForm() {
       }
     } catch (error) {
       console.error("[API] Error sending OTP:", error);
-      setErrorMessage(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to send OTP. Please try again.",
-      );
+      setErrorMessage(extractApiErrorMessage(error));
     } finally {
       setIsSendingOtp(false);
     }
@@ -791,15 +806,12 @@ export default function VisitorForm() {
       if (response?.success) {
         setFormData({ ...formData, verified: true });
       } else {
-        throw new Error(response?.message || "OTP verification failed");
+        const errorMsg = response?.message || "OTP verification failed";
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("[API] Error verifying OTP:", error);
-      setErrorMessage(
-        error.response?.data?.message ||
-          error.message ||
-          "Invalid OTP. Please try again.",
-      );
+      setErrorMessage(extractApiErrorMessage(error));
     } finally {
       setIsVerifying(false);
     }
@@ -878,15 +890,12 @@ export default function VisitorForm() {
         setUploadedPhotoUrl(response.data.visitorSelfieUrl);
         return true;
       } else {
-        throw new Error(response?.message || "Failed to upload selfie");
+        const errorMsg = response?.message || "Failed to upload selfie";
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("[API] Error uploading selfie:", error);
-      setErrorMessage(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to upload photo. Please try again.",
-      );
+      setErrorMessage(extractApiErrorMessage(error));
       return false;
     } finally {
       setIsUploadingSelfie(false);
@@ -955,94 +964,39 @@ export default function VisitorForm() {
     };
 
     try {
-      // Step 1: Submit visitor request
       const response = await submitVisitorRequest(
         selfieResponse.visitorId,
         visitorData,
       );
 
       if (response?.success || response?.data?.success) {
-        // Store the visitor ID
         const visitorId = selfieResponse.visitorId;
         setGeneratedVisitorId(visitorId);
-
-        // Step 2: Generate visitor pass immediately
-        await handleGeneratePass(visitorId);
+        setSubmissionSuccess(true);
+        setIsSubmitted(true);
+        
+        // Auto-download QR code after a short delay
+        setTimeout(() => {
+          downloadQRCode();
+        }, 1000);
       } else {
-        throw new Error(response?.message || "Failed to submit registration");
+        const errorMsg =
+          response?.errorDescription ||
+          response?.message ||
+          "Failed to submit registration";
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("[API] Error submitting visitor request:", error);
-      setErrorMessage(
-        error.response?.data?.message ||
-          error.message ||
-          "Failed to submit registration. Please try again.",
-      );
+      setErrorMessage(extractApiErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleGeneratePass = async (visitorId) => {
-    setGeneratingPass(true);
-    setErrorMessage("");
-
-    try {
-      const response = await generateVisitorPass({
-        visitorId: visitorId,
-      });
-
-      if (response.success) {
-        // Use the utility function to format pass data
-        const formattedPassData = formatPassData(
-          formData,
-          response.data,
-          selectedPurpose,
-        );
-
-        setPassData(formattedPassData);
-        setIsSubmitted(true);
-
-        // Show pass with animation
-        setTimeout(() => {
-          setPassVisible(true);
-        }, 300);
-
-        // Show action buttons after pass animation
-        setTimeout(() => {
-          setShowActions(true);
-        }, 1000);
-      } else {
-        throw new Error(response?.message || "Failed to generate pass");
-      }
-    } catch (error) {
-      console.error("[API] Error generating pass:", error);
-      setErrorMessage(
-        error.response?.data?.message ||
-          error.message ||
-          "Error generating visitor pass. Please try again.",
-      );
-    } finally {
-      setGeneratingPass(false);
-    }
-  };
-
-  const handleDownloadPass = async () => {
-    try {
-      setErrorMessage("");
-      await downloadPassAsImage(passRef, passData, setErrorMessage);
-
-      // Show success message
-      setErrorMessage("Pass downloaded successfully!");
-      setTimeout(() => setErrorMessage(""), 3000);
-    } catch (error) {
-      console.error("Download error:", error);
-      setErrorMessage("Failed to download pass. Please try again.");
-    }
-  };
-
   const handleFillAnother = () => {
     setIsSubmitted(false);
+    setSubmissionSuccess(false);
     setActiveStep(0);
     setFormData(INITIAL_FORM_DATA);
     setTxnId("");
@@ -1051,9 +1005,6 @@ export default function VisitorForm() {
     setShowCamera(false);
     setSelfieResponse(null);
     setUploadedPhotoUrl(null);
-    setPassData(null);
-    setPassVisible(false);
-    setShowActions(false);
     setGeneratedVisitorId(null);
   };
 
@@ -1087,7 +1038,7 @@ export default function VisitorForm() {
     setActiveStep(step);
   };
 
-  if (isSubmitted && passData) {
+  if (isSubmitted && submissionSuccess) {
     return (
       <Box
         sx={{
@@ -1099,6 +1050,8 @@ export default function VisitorForm() {
           p: isMobile ? 2 : 4,
           position: "relative",
           overflow: "hidden",
+          background:
+            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         }}
       >
         <Box
@@ -1126,107 +1079,173 @@ export default function VisitorForm() {
           }}
         />
 
-        <Box
+        <Card
           sx={{
-            animation: `${fadeInUp} 1s ease-out`,
+            maxWidth: isMobile ? "100%" : 500,
             width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            maxWidth: isMobile ? "100%" : "460px",
-            mb: 4,
+            background: "rgba(255, 255, 255, 0.05)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 4,
+            boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+            animation: `${fadeInUp} 1s ease-out`,
           }}
         >
-          <VisitorPass
-            passData={passData}
-            visible={passVisible}
-            downloadRef={passRef}
-          />
-        </Box>
+          <CardContent sx={{ p: isMobile ? 3 : 4, textAlign: "center" }}>
+            {/* Success Icon */}
+            <Avatar
+              sx={{
+                width: isMobile ? 80 : 100,
+                height: isMobile ? 80 : 100,
+                background: "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
+                mb: 3,
+                mx: "auto",
+                animation: `${pulse} 2s infinite`,
+              }}
+            >
+              <CheckCircleIcon sx={{ fontSize: isMobile ? 50 : 60 }} />
+            </Avatar>
 
-        <Fade in={showActions} timeout={500}>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              flexWrap: "wrap",
-              justifyContent: "center",
-              mt: 3,
-              animation: `${fadeInUp} 0.5s ease-out`,
-            }}
-          >
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadPass}
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
               sx={{
-                background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                 color: "white",
-                borderRadius: 3,
-                px: 3,
-                py: 1.5,
-                fontWeight: 600,
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                },
+                fontWeight: 700,
+                mb: 1,
+                background: "linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
               }}
             >
-              Download Pass
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleFillAnother}
+              Registration Successful!
+            </Typography>
+
+            <Typography
+              variant="body1"
               sx={{
-                borderColor: "#667eea",
-                color: "#667eea",
-                borderRadius: 3,
-                px: 3,
-                py: 1.5,
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: "#764ba2",
-                  color: "#764ba2",
-                  background: "rgba(102, 126, 234, 0.05)",
-                },
+                color: "rgba(255, 255, 255, 0.7)",
+                mb: 4,
+                px: isMobile ? 1 : 2,
               }}
             >
-              Register Another
-            </Button>
-          </Box>
-        </Fade>
-        {generatingPass && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(0, 0, 0, 0.7)",
-              zIndex: 10,
-            }}
-          >
-            <Box
+              Your visitor registration has been submitted successfully
+            </Typography>
+
+            {/* QR Code Section */}
+            <Paper
               sx={{
-                textAlign: "center",
-                p: 4,
+                p: 3,
                 background: "white",
                 borderRadius: 3,
+                mb: 3,
+                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
               }}
             >
-              <CircularProgress size={60} sx={{ mb: 2, color: "#667eea" }} />
-              <Typography variant="h6" sx={{ color: "#333", fontWeight: 600 }}>
-                Generating Visitor Pass...
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "#333",
+                  fontWeight: 600,
+                  mb: 2,
+                }}
+              >
+                Your Visitor ID
               </Typography>
-              <Typography variant="body2" sx={{ color: "#666", mt: 1 }}>
-                Please wait while we create your digital pass
+
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  mb: 2,
+                }}
+              >
+                <QRCodeSVG
+                  value={`${window.location.origin}${window.location.pathname}#/statuspass?id=${generatedVisitorId || ""}`}
+                  size={isMobile ? 180 : 200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </Box>
+              
+              {/* Hidden canvas for download */}
+              <Box ref={qrCodeRef} sx={{ display: "none" }}>
+                <QRCodeCanvas
+                  value={`${window.location.origin}${window.location.pathname}#/statuspass?id=${generatedVisitorId || ""}`}
+                  size={400}
+                  level="H"
+                  includeMargin={true}
+                />
+              </Box>
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#666",
+                  fontWeight: 600,
+                  mb: 1,
+                  fontFamily: "monospace",
+                  fontSize: "1.1rem",
+                }}
+              >
+                {generatedVisitorId}
               </Typography>
-            </Box>
-          </Box>
-        )}
+              
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "#999",
+                  display: "block",
+                  mt: 1,
+                }}
+              >
+                Scan QR code to check your visitor status
+              </Typography>
+            </Paper>
+            {/* Action Buttons */}
+            <Stack spacing={2}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={downloadQRCode}
+                sx={{
+                  borderColor: "rgba(33, 150, 243, 0.5)",
+                  color: "#2196f3",
+                  borderRadius: 3,
+                  px: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  "&:hover": {
+                    borderColor: "#2196f3",
+                    background: "rgba(33, 150, 243, 0.1)",
+                  },
+                }}
+              >
+                Download QR Code
+              </Button>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleFillAnother}
+                sx={{
+                  background:
+                    "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                  color: "white",
+                  borderRadius: 3,
+                  px: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                  },
+                }}
+              >
+                Register Another Visitor
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
       </Box>
     );
   }
@@ -2361,6 +2380,7 @@ export default function VisitorForm() {
                           borderRadius: "12px",
                           marginTop: "4px",
                           boxShadow: "0 16px 48px rgba(0, 0, 0, 0.5)",
+                          maxHeight: isMobile ? 300 : 400,
                           "& .MuiMenuItem-root": {
                             color: "rgba(255, 255, 255, 0.9)",
                             backgroundColor: "transparent",

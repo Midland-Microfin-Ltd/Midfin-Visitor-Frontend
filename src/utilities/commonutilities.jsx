@@ -3,7 +3,7 @@ export const determineHost = () => {
   const hostDomain = import.meta.env.VITE_HOST_DOMAIN;
   
   if (hostEnvironment === "development") {
-    return "https://midfinvisitoruat.midlandmicrofin.co.in";
+    return "midfinvisitoruat.midlandmicrofin.co.in";
   } else if (hostEnvironment === "staging") {
     return `https://${hostDomain}`;
   } else {
