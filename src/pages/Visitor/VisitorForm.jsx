@@ -71,20 +71,6 @@ import {
 import { keyframes } from "@emotion/react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 
-// Helper function to get the base URL based on environment
-const getBaseUrl = () => {
-  const environment = import.meta.env.VITE_ENVIRONMENT;
-  const hostDomain = import.meta.env.VITE_HOST_DOMAIN;
-  
-  // If in development, use localhost
-  if (environment === "development" && window.location.hostname === "localhost") {
-    return window.location.origin;
-  }
-  
-  // Otherwise use the configured domain
-  return `https://${hostDomain}`;
-};
-
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.05); opacity: 0.8; }
@@ -153,7 +139,6 @@ const DEPARTMENTS = [
   "Finance",
   "Operations",
   "Customer Support",
-  "Engineering",
 ];
 
 const STEPS = [
@@ -696,6 +681,20 @@ const extractApiErrorMessage = (error) => {
   return error.message || "An error occurred. Please try again.";
 };
 
+// Helper function to get base URL for QR code
+const getBaseUrl = () => {
+  const hostEnvironment = import.meta.env.VITE_ENVIRONMENT;
+  const hostDomain = import.meta.env.VITE_HOST_DOMAIN;
+  
+  // If running on localhost, use localhost URL
+  if (hostEnvironment === "development" && window.location.hostname === "localhost") {
+    return `${window.location.origin}${window.location.pathname}`;
+  } else {
+    // Use production domain
+    return `https://${hostDomain}/`;
+  }
+};
+
 // Main VisitorForm Component
 export default function VisitorForm() {
   const theme = useTheme();
@@ -1179,7 +1178,7 @@ export default function VisitorForm() {
                 }}
               >
                 <QRCodeSVG
-                  value={`${getBaseUrl()}/#/statuspass?id=${generatedVisitorId || ""}`}
+                  value={`${getBaseUrl()}#/statuspass?id=${generatedVisitorId || ""}`}
                   size={isMobile ? 180 : 200}
                   level="H"
                   includeMargin={true}
@@ -1189,7 +1188,7 @@ export default function VisitorForm() {
               {/* Hidden canvas for download */}
               <Box ref={qrCodeRef} sx={{ display: "none" }}>
                 <QRCodeCanvas
-                  value={`${getBaseUrl()}/#/statuspass?id=${generatedVisitorId || ""}`}
+                  value={`${getBaseUrl()}#/statuspass?id=${generatedVisitorId || ""}`}
                   size={400}
                   level="H"
                   includeMargin={true}
