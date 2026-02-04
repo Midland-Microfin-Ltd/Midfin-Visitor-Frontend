@@ -62,9 +62,28 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
   PendingActions as PendingActionsIcon,
 } from "@mui/icons-material";
-C
+import {
+  sendOtp,
+  verifyOtp,
+  submitVisitorSelfie,
+  submitVisitorRequest,
+} from "../../utilities/apiUtils/apiHelper";
 import { keyframes } from "@emotion/react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
+
+// Helper function to get the base URL based on environment
+const getBaseUrl = () => {
+  const environment = import.meta.env.VITE_ENVIRONMENT;
+  const hostDomain = import.meta.env.VITE_HOST_DOMAIN;
+  
+  // If in development, use localhost
+  if (environment === "development" && window.location.hostname === "localhost") {
+    return window.location.origin;
+  }
+  
+  // Otherwise use the configured domain
+  return `https://${hostDomain}`;
+};
 
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 1; }
@@ -1160,7 +1179,7 @@ export default function VisitorForm() {
                 }}
               >
                 <QRCodeSVG
-                  value={`${window.location.origin}${window.location.pathname}#/statuspass?id=${generatedVisitorId || ""}`}
+                  value={`${getBaseUrl()}/#/statuspass?id=${generatedVisitorId || ""}`}
                   size={isMobile ? 180 : 200}
                   level="H"
                   includeMargin={true}
@@ -1170,7 +1189,7 @@ export default function VisitorForm() {
               {/* Hidden canvas for download */}
               <Box ref={qrCodeRef} sx={{ display: "none" }}>
                 <QRCodeCanvas
-                  value={`${window.location.origin}${window.location.pathname}#/statuspass?id=${generatedVisitorId || ""}`}
+                  value={`${getBaseUrl()}/#/statuspass?id=${generatedVisitorId || ""}`}
                   size={400}
                   level="H"
                   includeMargin={true}
