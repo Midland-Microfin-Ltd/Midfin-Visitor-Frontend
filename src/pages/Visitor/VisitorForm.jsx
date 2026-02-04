@@ -684,14 +684,13 @@ const extractApiErrorMessage = (error) => {
 // Helper function to get base URL for QR code
 const getBaseUrl = () => {
   const hostEnvironment = import.meta.env.VITE_ENVIRONMENT;
-  const hostDomain = import.meta.env.VITE_HOST_DOMAIN;
   
   // If running on localhost, use localhost URL
   if (hostEnvironment === "development" && window.location.hostname === "localhost") {
     return `${window.location.origin}${window.location.pathname}`;
   } else {
-    // Use production domain
-    return `https://${hostDomain}/`;
+    // Use production dashboard domain
+    return "https://midfinvisitordashboarduat.midlandmicrofin.co.in/";
   }
 };
 
