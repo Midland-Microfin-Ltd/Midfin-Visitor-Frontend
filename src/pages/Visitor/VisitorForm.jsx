@@ -948,7 +948,9 @@ export default function VisitorForm() {
   };
 
   const handleChange = (field) => (e) => {
-    setFormData({ ...formData, [field]: e.target.value });
+    const value =
+      field === "governmentId" ? e.target.value.toUpperCase() : e.target.value;
+    setFormData({ ...formData, [field]: value });
   };
 
   const handleEdit = (step) => {
