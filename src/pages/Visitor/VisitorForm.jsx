@@ -226,17 +226,7 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
   };
 
   const startCountdown = () => {
-    setCountdown(3);
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          capturePhoto();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    capturePhoto();
   };
 
   const capturePhoto = () => {
@@ -423,7 +413,7 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
 
         <Fab
           color="primary"
-          onClick={startCountdown}
+          onClick={capturePhoto}
           sx={{
             width: isMobile ? 70 : 80,
             height: isMobile ? 70 : 80,
@@ -590,12 +580,22 @@ const ReviewItemMobile = ({
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Typography
         variant="caption"
-        sx={{ color: "rgba(255, 255, 255, 0.6)", display: "block", mb: 0.5 }}
+        sx={{ 
+          color: "rgba(255, 255, 255, 0.6)", 
+          display: "block", 
+          mb: 0.5,
+          WebkitTextFillColor: "rgba(255, 255, 255, 0.6)",
+        }}
       >
         {label}
       </Typography>
       <Typography
-        sx={{ color: "white", fontWeight: 500, mb: subValue ? 0.5 : 0 }}
+        sx={{ 
+          color: "white", 
+          fontWeight: 500, 
+          mb: subValue ? 0.5 : 0,
+          WebkitTextFillColor: "white",
+        }}
       >
         {value}
       </Typography>
@@ -1532,9 +1532,24 @@ export default function VisitorForm() {
                         borderColor: "#2196f3",
                         boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
                       },
+                      "&.Mui-disabled": {
+                        color: "white",
+                        backgroundColor: "rgba(255, 255, 255, 0.08)",
+                        "& fieldset": {
+                          borderColor: "rgba(255, 255, 255, 0.3)",
+                        },
+                      },
                     },
                     "& .MuiInputLabel-root": {
                       color: "rgba(255, 255, 255, 0.7)",
+                      "&.Mui-disabled": {
+                        color: "rgba(255, 255, 255, 0.6)",
+                      },
+                    },
+                    "& .MuiInputBase-input.Mui-disabled": {
+                      WebkitTextFillColor: "white",
+                      color: "white",
+                      opacity: 1,
                     },
                   }}
                 />
@@ -1583,13 +1598,17 @@ export default function VisitorForm() {
                         value={formData.otp}
                         onChange={handleOtpChange}
                         placeholder="4 digit code"
-                        inputProps={{ maxLength: 4 }}
+                        inputProps={{ 
+                          maxLength: 4,
+                          style: { color: "white" }
+                        }}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
                               <SecurityIcon sx={{ color: "#2196f3" }} />
                             </InputAdornment>
                           ),
+                          style: { color: "white" },
                         }}
                         sx={{
                           mb: 2,
@@ -1603,6 +1622,17 @@ export default function VisitorForm() {
                             "&:hover fieldset": {
                               borderColor: "rgba(33, 150, 243, 0.5)",
                             },
+                            "&.Mui-focused fieldset": {
+                              borderColor: "#2196f3",
+                              boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
+                            },
+                          },
+                          "& .MuiInputLabel-root": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
+                          "& input::placeholder": {
+                            color: "rgba(255, 255, 255, 0.5)",
+                            opacity: 1,
                           },
                         }}
                       />
@@ -1728,7 +1758,22 @@ export default function VisitorForm() {
                               fontSize: isMobile ? "0.9rem" : "1rem",
                             }}
                           >
-                            I accept the terms and conditions
+                            I accept the{" "}
+                            <Link
+                              href="https://midlandmicrofin.com/terms-and-conditions/"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                color: "#4fc3f7",
+                                textDecoration: "underline",
+                                "&:hover": {
+                                  color: "#29b6f6",
+                                },
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              terms and conditions
+                            </Link>
                           </Typography>
                         }
                       />
@@ -1949,102 +1994,186 @@ export default function VisitorForm() {
           {/* Step 2: Purpose Selection */}
           {activeStep === 2 && (
             <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
-              <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
                 <Avatar
                   sx={{
-                    width: isMobile ? 60 : 100,
-                    height: isMobile ? 60 : 100,
+                    width: { xs: 60, sm: 80, md: 100 },
+                    height: { xs: 60, sm: 80, md: 100 },
                     background:
-                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                    mb: 2,
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    mb: { xs: 1.5, sm: 2 },
                     mx: "auto",
                     animation: `${float} 3s ease-in-out infinite`,
+                    boxShadow: "0 8px 32px rgba(102, 126, 234, 0.4)",
                   }}
                 >
-                  <BusinessCenterIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                  <BusinessCenterIcon sx={{ fontSize: { xs: 32, sm: 40, md: 50 } }} />
                 </Avatar>
                 <Typography
-                  variant={isMobile ? "h5" : "h6"}
-                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                  variant={isMobile ? "h5" : "h4"}
+                  sx={{ 
+                    color: "white", 
+                    fontWeight: 700, 
+                    mb: { xs: 0.5, sm: 1 },
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" },
+                    background: "linear-gradient(135deg, #fff 0%, #e0e7ff 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
                 >
                   Purpose of Visit
                 </Typography>
                 <Typography
                   variant="body2"
                   sx={{
-                    color: "rgba(255, 255, 255, 0.6)",
-                    px: isMobile ? 2 : 0,
+                    color: "rgba(255, 255, 255, 0.7)",
+                    px: { xs: 2, sm: 4, md: 0 },
+                    fontSize: { xs: "0.85rem", sm: "0.95rem", md: "1rem" },
                   }}
                 >
                   Select the primary reason for your visit
                 </Typography>
               </Box>
 
-              <Grid container spacing={isMobile ? 1.5 : 2}>
-                {PURPOSES.map((purpose) => (
-                  <Grid item xs={6} key={purpose.id}>
+              <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
+                {PURPOSES.map((purpose, index) => (
+                  <Grid item xs={6} sm={6} md={3} key={purpose.id}>
                     <CardActionArea
                       onClick={() => handlePurposeSelect(purpose.id)}
+                      sx={{
+                        borderRadius: { xs: 3, sm: 4 },
+                        transition: "all 0.3s ease",
+                      }}
                     >
                       <Card
                         sx={{
-                          p: isMobile ? 2 : 3,
+                          p: { xs: 2, sm: 2.5, md: 3.5 },
                           textAlign: "center",
                           height: "100%",
-                          minHeight: isMobile ? 120 : 140,
+                          minHeight: { xs: 130, sm: 150, md: 160 },
                           background:
                             formData.purpose === purpose.id
-                              ? `linear-gradient(135deg, ${purpose.color}40 0%, ${purpose.color}20 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
+                              ? `linear-gradient(135deg, ${purpose.color}50 0%, ${purpose.color}30 100%)`
+                              : "rgba(255, 255, 255, 0.08)",
+                          backdropFilter: "blur(10px)",
                           border:
                             formData.purpose === purpose.id
-                              ? `2px solid ${purpose.color}`
-                              : "1px solid rgba(255, 255, 255, 0.1)",
-                          transition: "all 0.3s ease",
-                          borderRadius: 3,
+                              ? `3px solid ${purpose.color}`
+                              : "2px solid rgba(255, 255, 255, 0.15)",
+                          transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                          borderRadius: { xs: 3, sm: 4 },
                           display: "flex",
                           flexDirection: "column",
                           justifyContent: "center",
                           alignItems: "center",
+                          position: "relative",
+                          overflow: "hidden",
+                          animation: `${fadeInUp} ${0.5 + index * 0.1}s ease-out`,
+                          "&::before": {
+                            content: '""',
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: formData.purpose === purpose.id
+                              ? `radial-gradient(circle at 50% 50%, ${purpose.color}20, transparent 70%)`
+                              : "transparent",
+                            opacity: 0.8,
+                            transition: "all 0.4s ease",
+                          },
                           "&:hover": {
-                            transform: "translateY(-4px)",
-                            boxShadow: `0 8px 24px ${purpose.color}40`,
+                            transform: { 
+                              xs: "translateY(-4px) scale(1.02)", 
+                              sm: "translateY(-6px) scale(1.02)", 
+                              md: "translateY(-8px) scale(1.02)" 
+                            },
+                            boxShadow: formData.purpose === purpose.id
+                              ? `0 12px 40px ${purpose.color}60, 0 0 0 1px ${purpose.color}40`
+                              : `0 12px 40px rgba(255, 255, 255, 0.15)`,
+                            border: `3px solid ${purpose.color}`,
+                            background: `linear-gradient(135deg, ${purpose.color}40 0%, ${purpose.color}20 100%)`,
+                            "&::before": {
+                              background: `radial-gradient(circle at 50% 50%, ${purpose.color}30, transparent 70%)`,
+                            },
+                          },
+                          "&:active": {
+                            transform: "scale(0.98)",
                           },
                         }}
                       >
-                        <Typography
+                        <Box
                           sx={{
-                            fontSize: isMobile ? 40 : 48,
-                            mb: 1.5,
-                            animation:
-                              formData.purpose === purpose.id
-                                ? `${float} 2s ease-in-out infinite`
-                                : "none",
+                            position: "relative",
+                            zIndex: 1,
                           }}
                         >
-                          {purpose.icon}
-                        </Typography>
-                        <Typography
-                          variant={isMobile ? "body2" : "body1"}
-                          sx={{
-                            color: "white",
-                            fontWeight:
-                              formData.purpose === purpose.id ? 600 : 400,
-                          }}
-                        >
-                          {purpose.label}
-                        </Typography>
-                        {formData.purpose === purpose.id && (
                           <Box
                             sx={{
-                              mt: 1,
-                              width: 24,
-                              height: 4,
-                              background: purpose.color,
-                              borderRadius: 2,
+                              width: { xs: 56, sm: 64, md: 80 },
+                              height: { xs: 56, sm: 64, md: 80 },
+                              background: formData.purpose === purpose.id
+                                ? `linear-gradient(135deg, ${purpose.color} 0%, ${purpose.color}cc 100%)`
+                                : `rgba(255, 255, 255, 0.1)`,
+                              borderRadius: { xs: 2, sm: 2.5, md: 3 },
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              margin: "0 auto",
+                              mb: { xs: 1, sm: 1.2, md: 1.5 },
+                              transition: "all 0.4s ease",
+                              animation:
+                                formData.purpose === purpose.id
+                                  ? `${pulse} 2s ease-in-out infinite`
+                                  : "none",
+                              boxShadow: formData.purpose === purpose.id
+                                ? `0 8px 24px ${purpose.color}60`
+                                : "0 4px 12px rgba(0, 0, 0, 0.2)",
                             }}
-                          />
-                        )}
+                          >
+                            <Typography
+                              sx={{
+                                fontSize: { xs: 32, sm: 36, md: 44 },
+                                filter: formData.purpose === purpose.id
+                                  ? "drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))"
+                                  : "none",
+                              }}
+                            >
+                              {purpose.icon}
+                            </Typography>
+                          </Box>
+                          <Typography
+                            sx={{
+                              color: "white",
+                              fontSize: { xs: "0.875rem", sm: "1rem", md: "1.125rem" },
+                              fontWeight:
+                                formData.purpose === purpose.id ? 700 : 500,
+                              letterSpacing: "0.5px",
+                              textShadow: formData.purpose === purpose.id
+                                ? "0 2px 8px rgba(0, 0, 0, 0.3)"
+                                : "none",
+                              transition: "all 0.3s ease",
+                              lineHeight: 1.3,
+                              px: { xs: 0.5, sm: 1 },
+                            }}
+                          >
+                            {purpose.label}
+                          </Typography>
+                          {formData.purpose === purpose.id && (
+                            <Box
+                              sx={{
+                                mt: { xs: 1, sm: 1.2, md: 1.5 },
+                                width: { xs: 32, sm: 36, md: 40 },
+                                height: { xs: 3, sm: 3.5, md: 4 },
+                                background: `linear-gradient(90deg, transparent, ${purpose.color}, transparent)`,
+                                borderRadius: 2,
+                                margin: { xs: "8px auto 0", sm: "10px auto 0", md: "12px auto 0" },
+                                animation: `${shimmer} 2s ease-in-out infinite`,
+                              }}
+                            />
+                          )}
+                        </Box>
                       </Card>
                     </CardActionArea>
                   </Grid>
