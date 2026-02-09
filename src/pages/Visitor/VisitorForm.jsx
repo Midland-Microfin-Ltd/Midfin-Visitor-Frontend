@@ -2048,12 +2048,12 @@ export default function VisitorForm() {
                         transition: "all 0.3s ease",
                       }}
                     >
-                      <Card
+                        <Card
                         sx={{
-                          p: { xs: 2, sm: 2.5, md: 3.5 },
+                          p: { xs: 1.5, sm: 2.5, md: 3.5 },
                           textAlign: "center",
                           height: "100%",
-                          minHeight: { xs: 130, sm: 150, md: 160 },
+                          minHeight: { xs: 120, sm: 150, md: 160 },
                           background:
                             formData.purpose === purpose.id
                               ? `linear-gradient(135deg, ${purpose.color}50 0%, ${purpose.color}30 100%)`
@@ -2148,16 +2148,22 @@ export default function VisitorForm() {
                           <Typography
                             sx={{
                               color: "white",
-                              fontSize: { xs: "0.875rem", sm: "1rem", md: "1.125rem" },
+                              fontSize: { xs: "0.8rem", sm: "1rem", md: "1.125rem" },
                               fontWeight:
                                 formData.purpose === purpose.id ? 700 : 500,
-                              letterSpacing: "0.5px",
+                              letterSpacing: "0.4px",
                               textShadow: formData.purpose === purpose.id
                                 ? "0 2px 8px rgba(0, 0, 0, 0.3)"
                                 : "none",
                               transition: "all 0.3s ease",
-                              lineHeight: 1.3,
+                              lineHeight: 1.2,
                               px: { xs: 0.5, sm: 1 },
+                              textAlign: "center",
+                              minHeight: { xs: 34, sm: 38, md: 40 },
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              wordBreak: "break-word",
                             }}
                           >
                             {purpose.label}
