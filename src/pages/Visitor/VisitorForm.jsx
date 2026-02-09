@@ -125,9 +125,9 @@ const slideIn = keyframes`
 `;
 
 const PURPOSES = [
-  { id: "business", label: "Business", icon: "💼", color: "#2196f3" },
   { id: "interview", label: "Interview", icon: "👔", color: "#4caf50" },
-  { id: "Meeting", label: "Event", icon: "🎤", color: "#9c27b0" },
+  { id: "meeting", label: "Meeting", icon: "🤝", color: "#9c27b0" },
+  { id: "company-visit", label: "Company Visit", icon: "🏢", color: "#2196f3" },
   { id: "other", label: "Other", icon: "📋", color: "#607d8b" },
 ];
 
@@ -720,7 +720,7 @@ export default function VisitorForm() {
   // Derived values
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
   const canProceedToMeetingInfo =
-    formData.fullName && formData.company && formData.governmentId;
+    formData.fullName && formData.governmentId;
   const canProceedToReview =
     formData.personToMeet && formData.department && formData.visitDuration;
 
