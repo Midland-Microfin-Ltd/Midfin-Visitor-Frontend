@@ -99,7 +99,10 @@ const StatusPass = () => {
           setResponseType("pending");
         }
         // Case 2: Expired - success false and message contains "expired"
-        else if (response?.success === false && response?.message?.toLowerCase().includes("expired")) {
+        else if (
+          response?.success === false &&
+          response?.message?.toLowerCase().includes("expired")
+        ) {
           setResponseType("expired");
         }
         // Case 3: Rejected with success false - data is null
@@ -124,7 +127,7 @@ const StatusPass = () => {
         }
       } catch (err) {
         console.error("Error fetching visitor status:", err);
-        
+
         // Check if error response has visitorRequestNotFound
         if (err.response?.data?.errorCode === "visitorRequestNotFound") {
           setApiResponse(err.response.data);
@@ -149,12 +152,16 @@ const StatusPass = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          background:
+            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         }}
       >
         <Fade in={loading}>
           <Box sx={{ textAlign: "center" }}>
-            <CircularProgress size={isMobile ? 50 : 60} sx={{ color: "#2196f3", mb: 2 }} />
+            <CircularProgress
+              size={isMobile ? 50 : 60}
+              sx={{ color: "#2196f3", mb: 2 }}
+            />
             <Typography sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
               Loading visitor status...
             </Typography>
@@ -174,7 +181,8 @@ const StatusPass = () => {
           alignItems: "center",
           justifyContent: "center",
           p: isMobile ? 2 : 4,
-          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          background:
+            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         }}
       >
         <Grow in={!loading} timeout={800}>
@@ -208,7 +216,7 @@ const StatusPass = () => {
                   <HourglassEmptyIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
                 </Avatar>
               </Box>
-              
+
               <Typography
                 variant={isMobile ? "h5" : "h4"}
                 sx={{
@@ -219,7 +227,7 @@ const StatusPass = () => {
               >
                 Pending Approval
               </Typography>
-              
+
               <Chip
                 label="PENDING"
                 sx={{
@@ -251,7 +259,8 @@ const StatusPass = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  {apiResponse?.message || "Visitor pass will be generated after approval"}
+                  {apiResponse?.message ||
+                    "Visitor pass will be generated after approval"}
                 </Typography>
               </Paper>
 
@@ -265,22 +274,6 @@ const StatusPass = () => {
               >
                 Please wait while your request is being reviewed by our team.
               </Typography>
-
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<HomeIcon />}
-                onClick={() => navigate("/")}
-                sx={{
-                  background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                  py: isMobile ? 1.2 : 1.5,
-                  borderRadius: 3,
-                  fontWeight: 600,
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                }}
-              >
-                Return to Home
-              </Button>
             </CardContent>
           </Card>
         </Grow>
@@ -298,7 +291,8 @@ const StatusPass = () => {
           alignItems: "center",
           justifyContent: "center",
           p: isMobile ? 2 : 4,
-          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          background:
+            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         }}
       >
         <Grow in={!loading} timeout={800}>
@@ -339,7 +333,7 @@ const StatusPass = () => {
                   <HourglassEmptyIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
                 </Avatar>
               </Box>
-              
+
               <Typography
                 variant={isMobile ? "h5" : "h4"}
                 sx={{
@@ -350,7 +344,7 @@ const StatusPass = () => {
               >
                 Pass Expired
               </Typography>
-              
+
               <Chip
                 label="EXPIRED"
                 sx={{
@@ -403,7 +397,8 @@ const StatusPass = () => {
                 startIcon={<HomeIcon />}
                 onClick={() => navigate("/")}
                 sx={{
-                  background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                  background:
+                    "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                   py: isMobile ? 1.2 : 1.5,
                   borderRadius: 3,
                   fontWeight: 600,
@@ -429,7 +424,8 @@ const StatusPass = () => {
           alignItems: "center",
           justifyContent: "center",
           p: isMobile ? 2 : 4,
-          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          background:
+            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         }}
       >
         <Grow in={!loading} timeout={800}>
@@ -470,7 +466,7 @@ const StatusPass = () => {
                   <SadIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
                 </Avatar>
               </Box>
-              
+
               <Typography
                 variant={isMobile ? "h5" : "h4"}
                 sx={{
@@ -481,7 +477,7 @@ const StatusPass = () => {
               >
                 Oops!
               </Typography>
-              
+
               <Chip
                 label="REJECTED"
                 sx={{
@@ -525,7 +521,8 @@ const StatusPass = () => {
                   fontSize: isMobile ? "0.875rem" : "1rem",
                 }}
               >
-                Your visitor request has been rejected. Better luck next time! 🙏
+                Your visitor request has been rejected. Better luck next time!
+                🙏
               </Typography>
 
               <Button
@@ -534,7 +531,8 @@ const StatusPass = () => {
                 startIcon={<HomeIcon />}
                 onClick={() => navigate("/")}
                 sx={{
-                  background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                  background:
+                    "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                   py: isMobile ? 1.2 : 1.5,
                   borderRadius: 3,
                   fontWeight: 600,
@@ -560,7 +558,8 @@ const StatusPass = () => {
           alignItems: "center",
           justifyContent: "center",
           p: isMobile ? 2 : 4,
-          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+          background:
+            "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
         }}
       >
         <Grow in={!loading} timeout={800}>
@@ -593,7 +592,7 @@ const StatusPass = () => {
                   <ErrorOutlineIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
                 </Avatar>
               </Box>
-              
+
               <Typography
                 variant={isMobile ? "h5" : "h4"}
                 sx={{
@@ -622,7 +621,8 @@ const StatusPass = () => {
                     lineHeight: 1.6,
                   }}
                 >
-                  {apiResponse?.errorDescription || "The specified visitor request does not exist."}
+                  {apiResponse?.errorDescription ||
+                    "The specified visitor request does not exist."}
                 </Typography>
               </Paper>
 
@@ -636,22 +636,6 @@ const StatusPass = () => {
               >
                 Please check your visitor ID or contact support for assistance.
               </Typography>
-
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<HomeIcon />}
-                onClick={() => navigate("/")}
-                sx={{
-                  background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                  py: isMobile ? 1.2 : 1.5,
-                  borderRadius: 3,
-                  fontWeight: 600,
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                }}
-              >
-                Return to Home
-              </Button>
             </CardContent>
           </Card>
         </Grow>
@@ -671,7 +655,8 @@ const StatusPass = () => {
         justifyContent: "center",
         p: isMobile ? 2 : 4,
         py: isMobile ? 3 : 4,
-        background: "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
+        background:
+          "linear-gradient(135deg, #0a1929 0%, #001e3c 50%, #0d47a1 100%)",
       }}
     >
       <Grow in={!loading} timeout={800}>
@@ -707,7 +692,7 @@ const StatusPass = () => {
                     <CheckCircleIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
                   </Avatar>
                 </Box>
-                
+
                 <Typography
                   variant={isMobile ? "h5" : "h4"}
                   sx={{
@@ -719,7 +704,7 @@ const StatusPass = () => {
                 >
                   Visitor Pass
                 </Typography>
-                
+
                 <Chip
                   label="APPROVED"
                   sx={{
@@ -736,7 +721,12 @@ const StatusPass = () => {
               </Box>
             </Fade>
 
-            <Divider sx={{ mb: isMobile ? 2 : 3, borderColor: "rgba(255, 255, 255, 0.1)" }} />
+            <Divider
+              sx={{
+                mb: isMobile ? 2 : 3,
+                borderColor: "rgba(255, 255, 255, 0.1)",
+              }}
+            />
 
             {/* Visitor Details */}
             <Stack spacing={isMobile ? 1.5 : 2}>
@@ -755,7 +745,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#2196f320",
@@ -807,7 +801,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#9c27b020",
@@ -858,7 +856,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#4caf5020",
@@ -908,7 +910,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#ff980020",
@@ -959,7 +965,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#e91e6320",
@@ -1010,7 +1020,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#00bcd420",
@@ -1070,7 +1084,11 @@ const StatusPass = () => {
                     },
                   }}
                 >
-                  <Stack direction="row" alignItems="center" spacing={isMobile ? 1.5 : 2}>
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={isMobile ? 1.5 : 2}
+                  >
                     <Avatar
                       sx={{
                         bgcolor: "#607d8b20",
@@ -1105,32 +1123,6 @@ const StatusPass = () => {
                 </Paper>
               </Slide>
             </Stack>
-
-            {/* Action Button */}
-            <Fade in={!loading} timeout={1400}>
-              <Box sx={{ mt: isMobile ? 3 : 4 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<HomeIcon />}
-                  onClick={() => navigate("/")}
-                  sx={{
-                    background: "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                    py: isMobile ? 1.2 : 1.5,
-                    borderRadius: 3,
-                    fontWeight: 600,
-                    fontSize: isMobile ? "0.9rem" : "1rem",
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 8px 20px rgba(33, 150, 243, 0.4)",
-                    },
-                  }}
-                >
-                  Return to Home
-                </Button>
-              </Box>
-            </Fade>
           </CardContent>
         </Card>
       </Grow>
