@@ -1506,6 +1506,7 @@ export default function VisitorForm() {
                   onChange={handlePhoneChange}
                   placeholder="10 digit mobile number"
                   disabled={formData.verified || formData.otpSent}
+                  autoComplete="off"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -1519,6 +1520,8 @@ export default function VisitorForm() {
                   }}
                   inputProps={{
                     style: { color: "white" },
+                    autoComplete: "off",
+                    name: "visitor-phone-dnf",
                   }}
                   sx={{
                     mb: 2,
@@ -1600,9 +1603,12 @@ export default function VisitorForm() {
                         value={formData.otp}
                         onChange={handleOtpChange}
                         placeholder="4 digit code"
+                        autoComplete="off"
                         inputProps={{ 
                           maxLength: 4,
-                          style: { color: "white" }
+                          style: { color: "white" },
+                          autoComplete: "off",
+                          name: "visitor-otp-dnf",
                         }}
                         InputProps={{
                           startAdornment: (
@@ -2231,12 +2237,14 @@ export default function VisitorForm() {
                   value={formData.fullName}
                   onChange={handleChange("fullName")}
                   placeholder="Enter your full name"
+                  autoComplete="off"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <PersonIcon sx={{ color: "#2196f3" }} />
                       </InputAdornment>
                     ),
+                    inputProps: { autoComplete: "off", name: "visitor-name-dnf" },
                   }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
@@ -2266,12 +2274,14 @@ export default function VisitorForm() {
                   value={formData.company}
                   onChange={handleChange("company")}
                   placeholder="Enter company name"
+                  autoComplete="off"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <BusinessIcon sx={{ color: "#2196f3" }} />
                       </InputAdornment>
                     ),
+                    inputProps: { autoComplete: "off", name: "visitor-company-dnf" },
                   }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
@@ -2294,12 +2304,14 @@ export default function VisitorForm() {
                   value={formData.governmentId}
                   onChange={handleChange("governmentId")}
                   placeholder="Aadhar, PAN, Driving License, etc."
+                  autoComplete="off"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <BadgeIcon sx={{ color: "#2196f3" }} />
                       </InputAdornment>
                     ),
+                    inputProps: { autoComplete: "off", name: "visitor-govid-dnf" },
                   }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
@@ -2389,12 +2401,14 @@ export default function VisitorForm() {
                   value={formData.personToMeet}
                   onChange={handleChange("personToMeet")}
                   placeholder="Enter person's name"
+                  autoComplete="off"
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <PersonIcon sx={{ color: "#2196f3" }} />
                       </InputAdornment>
                     ),
+                    inputProps: { autoComplete: "off", name: "visitor-person-dnf" },
                   }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
