@@ -33,7 +33,7 @@ const drawerWidth = 240;
 const miniDrawerWidth = 73;
 
 const menuItems = [
-  // { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Visitors', icon: <PeopleIcon />, path: '/visitors' },
   { text: 'Management', icon: <ManageAccountsIcon />, path: '/management' },
   { text: 'Passes', icon: <PassIcon />, path: '/passes' }
@@ -550,7 +550,6 @@ const MiniDrawer = ({ children }) => {
             </Avatar>
           </Box>
         </Box>
-
         {/* Page Content */}
         <Box sx={{ p: { xs: 2, sm: 3 } }}>
           {children}
