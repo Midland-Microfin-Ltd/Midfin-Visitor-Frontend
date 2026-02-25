@@ -143,7 +143,7 @@ const Management = () => {
       color: "#48BB78",
       buildingType: "guestHouses",
     },
-    { label: "Visitor Types", icon: <GroupsIcon />, color: "#ED8936" },
+    // { label: "Visitor Types", icon: <GroupsIcon />, color: "#ED8936" },
     {
       label: "Offices",
       icon: <LocationIcon />,
