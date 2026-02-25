@@ -20,26 +20,42 @@ import {
   CircularProgress,
   Dialog,
   DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  Divider,
 } from "@mui/material";
 import {
   Search as SearchIcon,
   Download as DownloadIcon,
   QrCode as QrCodeIcon,
   Phone as PhoneIcon,
+  Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import MiniDrawer from "../../components/MiniDrawer";
 import { useThemeContext } from "../../context/ThemeContext";
-import VisitorPass from "./VisitorPassmaker";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import {
   getVisitorRequests,
-  generateVisitorPass,
 } from "../../utilities/apiUtils/apiHelper";
 import {
-  downloadPassAsImage,
-  formatPassData,
   getInitials,
 } from "../../utilities/PassDownloadUtils";
+
+// Helper function to get base URL for QR code
+const getBaseUrl = () => {
+  const hostEnvironment = import.meta.env.VITE_ENVIRONMENT;
+  
+  // If running on localhost, use localhost URL
+  if (hostEnvironment === "development" && window.location.hostname === "localhost") {
+    return `${window.location.origin}${window.location.pathname}`;
+  } else {
+    // Use production dashboard domain
+    return "https://midfinvisitordashboarduat.midlandmicrofin.co.in/";
+  }
+};
 
 const GeneratePass = () => {
   const { mode } = useThemeContext();
@@ -53,16 +69,13 @@ const GeneratePass = () => {
     severity: "success",
   });
   const [loading, setLoading] = useState(true);
-  const [generatingPass, setGeneratingPass] = useState(false);
   const [visitors, setVisitors] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
   const [selectedVisitor, setSelectedVisitor] = useState(null);
-  const [passDialog, setPassDialog] = useState(false);
-  const [passData, setPassData] = useState(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [qrDialog, setQrDialog] = useState(false);
 
-  // Create a ref for the pass component for downloading
-  const passRef = useRef(null);
+  // Create a ref for the QR code for downloading
+  const qrCodeRef = useRef(null);
 
   const fetchApprovedVisitors = async (
     currentPage = 0,
@@ -99,55 +112,31 @@ const GeneratePass = () => {
     }
   };
 
-  const handleGeneratePass = async (visitor) => {
-    setGeneratingPass(true);
-    try {
-      const response = await generateVisitorPass({
-        visitorId: visitor.visitorId,
-      });
+  const handleGenerateQRCode = (visitor) => {
+    setSelectedVisitor(visitor);
+    setQrDialog(true);
+    showSnackbar("QR Code generated successfully!", "success");
+  };
 
-      if (response.success) {
-        setSelectedVisitor(visitor);
-
-        // Use the utility function to format pass data
-        const formattedPassData = formatPassData(
-          {
-            fullName: visitor.visitorName,
-            phone: visitor.phoneNo,
-            governmentId: visitor.governmentId,
-            purpose: visitor.purposeOfVisit,
-            personToMeet: visitor.personToMeet,
-            visitDuration: "1", // Default 1 day for admin-generated passes
-          },
-          response.data,
-          { label: visitor.purposeOfVisit },
-        );
-
-        setPassData(formattedPassData);
-        setPassDialog(true);
-        setIsVisible(true);
-        showSnackbar("Visitor pass generated successfully!", "success");
-      } else {
-        showSnackbar(response.message || "Failed to generate pass", "error");
-      }
-    } catch (error) {
-      console.error("Error generating pass:", error);
-      showSnackbar("Error generating visitor pass", "error");
-    } finally {
-      setGeneratingPass(false);
+  const handleDownloadQRCode = () => {
+    if (!selectedVisitor) return;
+    
+    const canvas = qrCodeRef.current?.querySelector('canvas');
+    if (canvas) {
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `visitor-qr-${selectedVisitor.visitorId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showSnackbar("QR Code downloaded successfully!", "success");
     }
   };
 
-  const handleDownloadPass = async () => {
-    await downloadPassAsImage(passRef, passData, showSnackbar);
-  };
-
-
-  const closePassDialog = () => {
-    setPassDialog(false);
+  const closeQRDialog = () => {
+    setQrDialog(false);
     setSelectedVisitor(null);
-    setPassData(null);
-    setIsVisible(false);
   };
 
   const showSnackbar = (message, severity) => {
@@ -204,7 +193,10 @@ const GeneratePass = () => {
         >
           <Box>
             <Typography variant="h4" gutterBottom color="text.primary">
-              Generate Visitor Pass
+              Generate Visitor QR Code
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Generate QR codes for approved visitors to check their status
             </Typography>
           </Box>
         </Box>
@@ -245,7 +237,7 @@ const GeneratePass = () => {
                   <TableCell>Visitor</TableCell>
                   <TableCell>Contact</TableCell>
                   <TableCell>Visit Details</TableCell>
-                  <TableCell align="center">Generate Pass</TableCell>
+                  <TableCell align="center">Generate QR Code</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -328,8 +320,7 @@ const GeneratePass = () => {
                           variant="contained"
                           color="primary"
                           startIcon={<QrCodeIcon />}
-                          onClick={() => handleGeneratePass(visitor)}
-                          disabled={generatingPass}
+                          onClick={() => handleGenerateQRCode(visitor)}
                           sx={{
                             background:
                               "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -339,7 +330,7 @@ const GeneratePass = () => {
                             },
                           }}
                         >
-                          {generatingPass ? "Generating..." : "Generate Pass"}
+                          Generate QR
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -361,89 +352,105 @@ const GeneratePass = () => {
         </Paper>
       )}
 
-      {/* Dialog with VisitorPass Component */}
+      {/* Dialog with QR Code */}
       <Dialog
-        open={passDialog}
-        onClose={closePassDialog}
-        maxWidth="sm"
-        fullWidth
+        open={qrDialog}
+        onClose={closeQRDialog}
+        maxWidth="xs"
         PaperProps={{
           sx: {
             borderRadius: 3,
             overflow: "hidden",
-            background: "white",
             boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-            maxWidth: 500,
           },
         }}
       >
         <DialogContent
           sx={{
-            p: 3,
+            p: 4,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             background: "white",
           }}
         >
-          {/* Use the VisitorPass component */}
-          <VisitorPass
-            passData={passData}
-            visible={isVisible}
-            downloadRef={passRef}
-          />
+          {selectedVisitor && (
+            <>
+              {/* QR Code */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  mb: 3,
+                  p: 3,
+                  background: "white",
+                  borderRadius: 2,
+                  border: "2px solid #f0f0f0",
+                }}
+              >
+                <QRCodeSVG
+                  value={`${getBaseUrl()}#/statuspass?id=${selectedVisitor.visitorId}`}
+                  size={240}
+                  level="H"
+                  includeMargin={true}
+                />
+              </Box>
+              
+              {/* Hidden canvas for download */}
+              <Box ref={qrCodeRef} sx={{ display: "none" }}>
+                <QRCodeCanvas
+                  value={`${getBaseUrl()}#/statuspass?id=${selectedVisitor.visitorId}`}
+                  size={400}
+                  level="H"
+                  includeMargin={true}
+                />
+              </Box>
 
-          {/* Action Buttons */}
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              mt: 3,
-              justifyContent: "center",
-              width: "100%",
-            }}
-          >
-            <Button
-              onClick={closePassDialog}
-              variant="outlined"
-              sx={{
-                borderRadius: 2,
-                px: 3,
-                py: 1,
-                borderColor: "#bdc3c7",
-                color: "#2c3e50",
-                fontWeight: "medium",
-                "&:hover": {
-                  borderColor: "#95a5a6",
-                  backgroundColor: "rgba(189, 195, 199, 0.1)",
-                },
-                transition: "all 0.3s ease",
-              }}
-            >
-              Close
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadPass}
-              sx={{
-                borderRadius: 2,
-                px: 3,
-                py: 1,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                fontWeight: "medium",
-                boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
-                  boxShadow: "0 6px 16px rgba(102, 126, 234, 0.4)",
-                },
-                transition: "all 0.3s ease",
-              }}
-            >
-              Download Pass
-            </Button>
-          </Box>
+              {/* Action Buttons */}
+              <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
+                <Button
+                  onClick={closeQRDialog}
+                  variant="outlined"
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.2,
+                    borderColor: "#bdc3c7",
+                    color: "#2c3e50",
+                    fontWeight: "medium",
+                    "&:hover": {
+                      borderColor: "#95a5a6",
+                      backgroundColor: "rgba(189, 195, 199, 0.1)",
+                    },
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<DownloadIcon />}
+                  onClick={handleDownloadQRCode}
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.2,
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    fontWeight: "medium",
+                    boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
+                    "&:hover": {
+                      background:
+                        "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
+                      boxShadow: "0 6px 16px rgba(102, 126, 234, 0.4)",
+                    },
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  Download
+                </Button>
+              </Stack>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       <Snackbar
