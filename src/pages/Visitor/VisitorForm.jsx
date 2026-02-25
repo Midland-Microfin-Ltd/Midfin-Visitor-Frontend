@@ -2297,7 +2297,6 @@ export default function VisitorForm() {
                     },
                   }}
                 />
-
                 <TextField
                   fullWidth
                   label="Government ID Number"

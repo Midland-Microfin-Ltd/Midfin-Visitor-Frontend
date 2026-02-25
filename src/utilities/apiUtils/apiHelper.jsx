@@ -194,6 +194,22 @@ export const submitVisitorSelfie = async (selfieFile) => {
 };
 
 /**
+ * Get dashboard data
+ * @param {string} period - today, yesterday, last7days, last30days, thisMonth, lastMonth, thisYear
+ * @returns {Promise}
+ */
+export const getDashboardData = async (period = 'today') => {
+  try {
+    const response = await apiClient.get(
+      `/api/v1/dashboard?period=${period}`
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Get visitor status by ID
  * @param {string} visitorId
  * @returns {Promise}
