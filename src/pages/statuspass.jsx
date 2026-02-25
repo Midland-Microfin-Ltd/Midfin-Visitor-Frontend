@@ -1122,6 +1122,63 @@ const StatusPass = () => {
                   </Stack>
                 </Paper>
               </Slide>
+
+              {/* Guest House - Only show if provided */}
+              {visitorData?.isGuestHouseProvided && (
+                <Slide direction="right" in={!loading} timeout={1300}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #3f51b5",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: "#3f51b520",
+                          color: "#3f51b5",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
+                        }}
+                      >
+                        <HomeIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Guest House Allocated
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.guestHouse}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
             </Stack>
           </CardContent>
         </Card>
