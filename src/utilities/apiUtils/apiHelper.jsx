@@ -238,5 +238,23 @@ export const getOffice = async () => {
 };
 
 /**
+ * Update visitor visit duration
+ * @param {string} visitorId - The visitor ID (format: MV123)
+ * @param {number} visitDuration - New visit duration in days
+ * @returns {Promise}
+ */
+export const updateVisitDuration = async (visitorId, visitDuration) => {
+  try {
+    const response = await apiClient.patch(
+      `/api/v1/visitor/update-visit-duration/${visitorId}`,
+      { visitDuration }
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * @returns {Promise}
  */
