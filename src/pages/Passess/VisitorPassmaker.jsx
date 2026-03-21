@@ -32,6 +32,8 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
     return initials || "?";
   };
 
+  const [imageError, setImageError] = React.useState(false);
+
   return (
     <Box
       id="premium-visitor-pass-card"
@@ -132,7 +134,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                   mt: 0.5,
                 }}
               >
-                {passData?.passNumber || "VP-000000"}
+                {passData?.visitorId || "VP-000000"}
               </Typography>
             </Box>
             <Box
@@ -154,7 +156,12 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
           <Box sx={{ display: "flex", gap: 3, mb: 3 }}>
             <Box sx={{ position: "relative" }}>
               <Avatar
-                alt={passData?.fullName}
+                alt={passData?.visitorName}
+                src={!imageError && passData?.visitorSelfie ? passData.visitorSelfie : undefined}
+                imgProps={{
+                  crossOrigin: "anonymous",
+                  onError: () => setImageError(true)
+                }}
                 sx={{
                   width: 105,
                   height: 105,
@@ -168,7 +175,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                   bgcolor: "#667eea",
                 }}
               >
-                {getInitials(passData?.fullName)}
+                {(!passData?.visitorSelfie || imageError) && getInitials(passData?.visitorName)}
               </Avatar>
               <Box
                 sx={{
@@ -203,11 +210,11 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                   lineHeight: 1.2,
                 }}
               >
-                {passData?.fullName || "Visitor Name"}
+                {passData?.visitorName || "Visitor Name"}
               </Typography>
               <Chip
                 icon={<BadgeOutlined sx={{ fontSize: 15 }} />}
-                label={passData?.govtId || "ID: N/A"}
+                label={passData?.governmentId || "ID: N/A"}
                 size="small"
                 sx={{
                   background:
@@ -232,7 +239,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                     fontWeight: 700,
                   }}
                 >
-                  {passData?.contactNumber || "Phone: N/A"}
+                  {passData?.phoneNo || "Phone: N/A"}
                 </Typography>
               </Box>
             </Box>
@@ -276,7 +283,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                         fontSize: "1rem",
                       }}
                     >
-                      {passData?.purposeOfVisit || "Business Meeting"}
+                      {passData?.visitPurpose || "Business Meeting"}
                     </Typography>
                   </Box>
                 </Box>
@@ -359,7 +366,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                     fontSize: "0.85rem",
                   }}
                 >
-                  {passData?.validFrom}
+                  {passData?.validFrom || "N/A"}
                 </Typography>
               </Box>
             </Grid>
@@ -397,7 +404,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
                     fontSize: "0.85rem",
                   }}
                 >
-                  {passData?.validTill}
+                  {passData?.validUntil || "N/A"}
                 </Typography>
               </Box>
             </Grid>

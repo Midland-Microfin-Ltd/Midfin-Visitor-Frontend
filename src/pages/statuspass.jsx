@@ -36,6 +36,11 @@ import {
   SentimentVeryDissatisfied as SadIcon,
   CalendarMonth as CalendarIcon,
   Verified as VerifiedIcon,
+  LocationOn as LocationOnIcon,
+  WorkOutline as WorkOutlineIcon,
+  Assignment as AssignmentIcon,
+  Description as DescriptionIcon,
+  Domain as DomainIcon,
 } from "@mui/icons-material";
 import { keyframes } from "@emotion/react";
 import { getVisitorStatus } from "../utilities/apiUtils/apiHelper";
@@ -681,50 +686,43 @@ const StatusPass = () => {
             {/* Header */}
             <Fade in={!loading} timeout={1000}>
               <Box sx={{ textAlign: "center", mb: isMobile ? 3 : 4 }}>
-                <Box
-                  sx={{
-                    animation: `${rotateGlow} 2s ease-in-out infinite`,
-                    display: "inline-block",
-                  }}
+                <Badge
+                  overlap="circular"
+                  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                  badgeContent={
+                    visitorData?.isVerified && (
+                      <VerifiedIcon
+                        sx={{
+                          color: "#2196f3",
+                          bgcolor: "white",
+                          borderRadius: "50%",
+                          fontSize: isMobile ? 24 : 30,
+                        }}
+                      />
+                    )
+                  }
                 >
-                  <Badge
-                    overlap="circular"
-                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                    badgeContent={
-                      visitorData?.isVerified && (
-                        <VerifiedIcon
-                          sx={{
-                            color: "#2196f3",
-                            bgcolor: "white",
-                            borderRadius: "50%",
-                            fontSize: isMobile ? 24 : 30,
-                          }}
-                        />
-                      )
-                    }
+                  <Avatar
+                    src={!imageError && visitorData?.visitorSelfie ? visitorData.visitorSelfie : undefined}
+                    imgProps={{
+                      crossOrigin: "anonymous",
+                      onError: () => setImageError(true)
+                    }}
+                    sx={{
+                      width: isMobile ? 100 : 120,
+                      height: isMobile ? 100 : 120,
+                      bgcolor: "#4caf5020",
+                      color: "#4caf50",
+                      margin: "0 auto 20px",
+                      border: "3px solid #4caf50",
+                      fontSize: isMobile ? 40 : 50,
+                    }}
                   >
-                    <Avatar
-                      src={!imageError && visitorData?.visitorSelfie ? visitorData.visitorSelfie : undefined}
-                      imgProps={{
-                        crossOrigin: "anonymous",
-                        onError: () => setImageError(true)
-                      }}
-                      sx={{
-                        width: isMobile ? 100 : 120,
-                        height: isMobile ? 100 : 120,
-                        bgcolor: "#4caf5020",
-                        color: "#4caf50",
-                        margin: "0 auto 20px",
-                        border: "3px solid #4caf50",
-                        fontSize: isMobile ? 40 : 50,
-                      }}
-                    >
-                      {(!visitorData?.visitorSelfie || imageError) && (
-                        <PersonPinIcon sx={{ fontSize: isMobile ? 50 : 60 }} />
-                      )}
-                    </Avatar>
-                  </Badge>
-                </Box>
+                    {(!visitorData?.visitorSelfie || imageError) && (
+                      <PersonPinIcon sx={{ fontSize: isMobile ? 50 : 60 }} />
+                    )}
+                  </Avatar>
+                </Badge>
 
                 <Typography
                   variant={isMobile ? "h5" : "h4"}
@@ -928,179 +926,518 @@ const StatusPass = () => {
                 </Paper>
               </Slide>
 
-              {/* Government ID */}
-              <Slide direction="right" in={!loading} timeout={900}>
-                <Paper
-                  sx={{
-                    p: isMobile ? 1.5 : 2,
-                    background: "rgba(255, 255, 255, 0.05)",
-                    borderLeft: "4px solid #ff9800",
-                    borderRadius: 2,
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      background: "rgba(255, 255, 255, 0.08)",
-                      transform: "translateX(4px)",
-                    },
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={isMobile ? 1.5 : 2}
+              {/* Government ID - Show only if not null */}
+              {visitorData?.governmentId && (
+                <Slide direction="right" in={!loading} timeout={900}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #ff9800",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
                   >
-                    <Avatar
-                      sx={{
-                        bgcolor: "#ff980020",
-                        color: "#ff9800",
-                        width: isMobile ? 36 : 40,
-                        height: isMobile ? 36 : 40,
-                      }}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
                     >
-                      <BadgeIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
-                    </Avatar>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        variant="caption"
+                      <Avatar
                         sx={{
-                          color: "rgba(255, 255, 255, 0.6)",
-                          fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          bgcolor: "#ff980020",
+                          color: "#ff9800",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
                         }}
                       >
-                        Government ID
-                      </Typography>
-                      <Typography
+                        <BadgeIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Government ID
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {visitorData?.governmentId}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
+
+              {/* Address/Place - Show only if not null */}
+              {visitorData?.place && (
+                <Slide direction="right" in={!loading} timeout={950}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #8bc34a",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
                         sx={{
-                          color: "white",
-                          fontWeight: 600,
-                          fontSize: isMobile ? "0.9rem" : "1rem",
-                          wordBreak: "break-all",
+                          bgcolor: "#8bc34a20",
+                          color: "#8bc34a",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
                         }}
                       >
-                        {visitorData?.governmentId}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Slide>
+                        <LocationOnIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Address
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.place}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
 
               {/* Purpose */}
-              <Slide direction="right" in={!loading} timeout={1000}>
-                <Paper
-                  sx={{
-                    p: isMobile ? 1.5 : 2,
-                    background: "rgba(255, 255, 255, 0.05)",
-                    borderLeft: "4px solid #e91e63",
-                    borderRadius: 2,
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      background: "rgba(255, 255, 255, 0.08)",
-                      transform: "translateX(4px)",
-                    },
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={isMobile ? 1.5 : 2}
+              {visitorData?.visitPurpose && (
+                <Slide direction="right" in={!loading} timeout={1000}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #e91e63",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
                   >
-                    <Avatar
-                      sx={{
-                        bgcolor: "#e91e6320",
-                        color: "#e91e63",
-                        width: isMobile ? 36 : 40,
-                        height: isMobile ? 36 : 40,
-                      }}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
                     >
-                      <EventNoteIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
-                    </Avatar>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        variant="caption"
+                      <Avatar
                         sx={{
-                          color: "rgba(255, 255, 255, 0.6)",
-                          fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          bgcolor: "#e91e6320",
+                          color: "#e91e63",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
                         }}
                       >
-                        Purpose of Visit
-                      </Typography>
-                      <Typography
-                        sx={{
-                          color: "white",
-                          fontWeight: 600,
-                          fontSize: isMobile ? "0.9rem" : "1rem",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {visitorData?.visitPurpose}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Slide>
+                        <EventNoteIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Purpose of Visit
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.visitPurpose}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
 
-              {/* Person to Meet */}
-              <Slide direction="right" in={!loading} timeout={1100}>
-                <Paper
-                  sx={{
-                    p: isMobile ? 1.5 : 2,
-                    background: "rgba(255, 255, 255, 0.05)",
-                    borderLeft: "4px solid #00bcd4",
-                    borderRadius: 2,
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      background: "rgba(255, 255, 255, 0.08)",
-                      transform: "translateX(4px)",
-                    },
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={isMobile ? 1.5 : 2}
+              {/* Interview Type - Show only if not null */}
+              {visitorData?.interviewType && (
+                <Slide direction="right" in={!loading} timeout={1050}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #9c27b0",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
                   >
-                    <Avatar
-                      sx={{
-                        bgcolor: "#00bcd420",
-                        color: "#00bcd4",
-                        width: isMobile ? 36 : 40,
-                        height: isMobile ? 36 : 40,
-                      }}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
                     >
-                      <MeetingRoomIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
-                    </Avatar>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        variant="caption"
+                      <Avatar
                         sx={{
-                          color: "rgba(255, 255, 255, 0.6)",
-                          fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          bgcolor: "#9c27b020",
+                          color: "#9c27b0",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
                         }}
                       >
-                        Person to Meet
-                      </Typography>
-                      <Typography
+                        <AssignmentIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Interview Type
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.interviewType}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
+
+              {/* Employee Code - Show only if not null */}
+              {visitorData?.employeeCode && (
+                <Slide direction="right" in={!loading} timeout={1075}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #673ab7",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
                         sx={{
-                          color: "white",
-                          fontWeight: 600,
-                          fontSize: isMobile ? "0.9rem" : "1rem",
-                          wordBreak: "break-word",
+                          bgcolor: "#673ab720",
+                          color: "#673ab7",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
                         }}
                       >
-                        {visitorData?.personToMeet}
-                      </Typography>
-                      <Typography
-                        variant="caption"
+                        <WorkOutlineIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Employee Code
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.employeeCode}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
+
+              {/* Other Visit Purpose - Show only if not null */}
+              {visitorData?.otherVisitPurpose && (
+                <Slide direction="right" in={!loading} timeout={1085}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #ff5722",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
                         sx={{
-                          color: "rgba(255, 255, 255, 0.5)",
-                          fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          bgcolor: "#ff572220",
+                          color: "#ff5722",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
                         }}
                       >
-                        {visitorData?.department}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Slide>
+                        <DescriptionIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Other Visit Purpose
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.otherVisitPurpose}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
+
+              {/* Person to Meet - Show only if not null */}
+              {visitorData?.personToMeet && (
+                <Slide direction="right" in={!loading} timeout={1100}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #00bcd4",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: "#00bcd420",
+                          color: "#00bcd4",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
+                        }}
+                      >
+                        <MeetingRoomIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Person to Meet
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.personToMeet}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
+
+              {/* Department - Show only if not null */}
+              {visitorData?.department && (
+                <Slide direction="right" in={!loading} timeout={1110}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #009688",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: "#00968820",
+                          color: "#009688",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
+                        }}
+                      >
+                        <BusinessIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Department
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.department}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
+
+              {/* Office to Visit - Show only if not null */}
+              {visitorData?.officeName && (
+                <Slide direction="right" in={!loading} timeout={1150}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #795548",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: "#79554820",
+                          color: "#795548",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
+                        }}
+                      >
+                        <DomainIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Office to Visit
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {visitorData?.officeName}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
 
               {/* Valid Period */}
               <Slide direction="right" in={!loading} timeout={1200}>
