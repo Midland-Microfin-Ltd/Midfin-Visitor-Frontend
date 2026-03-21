@@ -44,7 +44,7 @@ import {
 } from "@mui/icons-material";
 import { keyframes } from "@emotion/react";
 import { getVisitorStatus } from "../utilities/apiUtils/apiHelper";
-import { determineHost } from "../utilities/commonutilities";
+import { determineHost, transformImageUrl } from "../utilities/commonutilities";
 
 // API Base URL
 const API_BASE_URL = determineHost();
@@ -703,7 +703,7 @@ const StatusPass = () => {
                   }
                 >
                   <Avatar
-                    src={!imageError && visitorData?.visitorSelfie ? visitorData.visitorSelfie : undefined}
+                    src={!imageError && visitorData?.visitorSelfie ? transformImageUrl(visitorData.visitorSelfie) : undefined}
                     imgProps={{
                       crossOrigin: "anonymous",
                       onError: () => setImageError(true)

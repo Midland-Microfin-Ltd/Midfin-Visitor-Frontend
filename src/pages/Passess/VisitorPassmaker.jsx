@@ -18,6 +18,7 @@ import {
   EventAvailableOutlined,
   EventBusyOutlined,
 } from "@mui/icons-material";
+import { transformImageUrl } from "../../utilities/commonutilities";
 
 const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
   const getInitials = (name) => {
@@ -157,7 +158,7 @@ const VisitorPass = ({ passData, visible = true, downloadRef = null }) => {
             <Box sx={{ position: "relative" }}>
               <Avatar
                 alt={passData?.visitorName}
-                src={!imageError && passData?.visitorSelfie ? passData.visitorSelfie : undefined}
+                src={!imageError && passData?.visitorSelfie ? transformImageUrl(passData.visitorSelfie) : undefined}
                 imgProps={{
                   crossOrigin: "anonymous",
                   onError: () => setImageError(true)
