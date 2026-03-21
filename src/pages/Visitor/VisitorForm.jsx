@@ -57,7 +57,6 @@ import {
   Print as PrintIcon,
   VerifiedUser as VerifiedUserIcon,
   Fingerprint as FingerprintIcon,
-  ArrowBack as ArrowBackIcon,
   Close as CloseIcon,
   HourglassEmpty as HourglassEmptyIcon,
   PendingActions as PendingActionsIcon,
@@ -67,6 +66,7 @@ import {
   verifyOtp,
   submitVisitorSelfie,
   submitVisitorRequest,
+  getOffice,
 } from "../../utilities/apiUtils/apiHelper";
 import { keyframes } from "@emotion/react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
@@ -125,28 +125,41 @@ const slideIn = keyframes`
 `;
 
 const PURPOSES = [
-  { id: "interview", label: "Interview", icon: "👔", color: "#4caf50" },
   { id: "meeting", label: "Meeting", icon: "🤝", color: "#9c27b0" },
-  { id: "company-visit", label: "Company Visit", icon: "🏢", color: "#2196f3" },
-  { id: "other", label: "Other", icon: "📋", color: "#607d8b" },
+  { id: "interview", label: "Interview", icon: "👔", color: "#4caf50" },
+  { id: "employee-visit", label: "Employee Visit", icon: "👤", color: "#2196f3" },
+  { id: "other-visit", label: "Other Visit", icon: "📋", color: "#ff9800" },
 ];
 
 const DEPARTMENTS = [
-  "Human Resources",
   "IT",
-  "Sales",
-  "Marketing",
+  "HR",
+  "Accounts",
   "Finance",
-  "Operations",
-  "Customer Support",
+  "Credit",
+  "Admin",
+  "Insurance",
+];
+
+const OTHER_VISIT_PURPOSES = [
+  "Normal Visit",
+  "Training",
+  "Induction",
+  "Joining",
+  "Other",
+];
+
+const INTERVIEW_TYPES = [
+  { id: "scheduled", label: "Scheduled" },
+  { id: "walkin", label: "Walk-in" },
 ];
 
 const STEPS = [
   "Verification",
   "Photo",
+  "Office",
   "Purpose",
   "Details",
-  "Meeting",
   "Review",
 ];
 
@@ -154,9 +167,9 @@ const STEPS = [
 const MOBILE_STEPS = [
   { label: "Verify", icon: <PhoneIcon /> },
   { label: "Photo", icon: <CameraAltIcon /> },
+  { label: "Office", icon: <BusinessIcon /> },
   { label: "Purpose", icon: <BusinessCenterIcon /> },
   { label: "Details", icon: <PersonIcon /> },
-  { label: "Meeting", icon: <MeetingRoomIcon /> },
   { label: "Review", icon: <FactCheckIcon /> },
 ];
 
@@ -173,8 +186,21 @@ const INITIAL_FORM_DATA = {
   personToMeet: "",
   department: "",
   visitDuration: "",
+  officeToVisit: "",
   photo: null,
   photoPreview: null,
+  // Meeting specific
+  place: "",
+  meetingWith: "",
+  // Interview specific
+  interviewType: "",
+  // Employee Visit specific
+  employeeCode: "",
+  employeeName: "",
+  yourDepartment: "",
+  visitDays: "",
+  // Other Visit specific
+  otherVisitPurpose: "",
 };
 
 const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
@@ -451,7 +477,7 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
 };
 
 // Mobile Bottom Navigation
-const MobileStepNavigation = ({ activeStep, onStepChange, isMobile }) => {
+const MobileStepNavigation = ({ activeStep, onStepChange, isMobile, completedSteps }) => {
   if (!isMobile) return null;
 
   return (
@@ -497,14 +523,24 @@ const MobileStepNavigation = ({ activeStep, onStepChange, isMobile }) => {
         {MOBILE_STEPS.map((step, index) => (
           <Box
             key={index}
+            onClick={() => completedSteps.has(index) && onStepChange(index)}
             sx={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 0.5,
-              opacity: index === activeStep ? 1 : 0.3,
+              opacity: completedSteps.has(index) 
+                ? (index === activeStep ? 1 : 0.6)
+                : 0.3,
               transition: "all 0.3s ease",
               transform: index === activeStep ? "translateY(-5px)" : "none",
+              cursor: completedSteps.has(index) ? "pointer" : "not-allowed",
+              "&:hover": completedSteps.has(index)
+                ? {
+                    opacity: 1,
+                    transform: "translateY(-5px)",
+                  }
+                : {},
             }}
           >
             <Avatar
@@ -699,6 +735,7 @@ export default function VisitorForm() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [activeStep, setActiveStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState(new Set([0])); // Track which steps user can navigate to
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
   const [txnId, setTxnId] = useState("");
@@ -713,16 +750,36 @@ export default function VisitorForm() {
   const [uploadedPhotoUrl, setUploadedPhotoUrl] = useState(null);
   const [generatedVisitorId, setGeneratedVisitorId] = useState(null);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
+  const [offices, setOffices] = useState([]);
+  const [isLoadingOffices, setIsLoadingOffices] = useState(false);
 
   const fileInputRef = useRef(null);
   const qrCodeRef = useRef(null);
 
   // Derived values
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
-  const canProceedToMeetingInfo =
-    formData.fullName && formData.governmentId;
-  const canProceedToReview =
-    formData.personToMeet && formData.department && formData.visitDuration;
+  
+  // Dynamic validation based on purpose
+  const canProceedToReview = () => {
+    if (!selectedPurpose) return false;
+    
+    switch (selectedPurpose.id) {
+      case "meeting":
+        return formData.fullName && formData.place && formData.department && 
+               formData.meetingWith && formData.company && formData.governmentId;
+      case "interview":
+        return formData.fullName && formData.place && formData.interviewType &&
+               formData.department && formData.personToMeet && formData.governmentId;
+      case "employee-visit":
+        return formData.employeeCode && formData.employeeName && formData.place &&
+               formData.yourDepartment && formData.visitDays && formData.governmentId;
+      case "other-visit":
+        return formData.fullName && formData.place && formData.personToMeet &&
+               formData.department && formData.otherVisitPurpose && formData.governmentId;
+      default:
+        return false;
+    }
+  };
 
   // Generate pass number
   const generatePassNumber = () => {
@@ -743,6 +800,36 @@ export default function VisitorForm() {
       document.body.removeChild(link);
     }
   };
+
+  // Auto-advance to step 1 when both verification and terms are completed
+  useEffect(() => {
+    if (activeStep === 0 && formData.verified && formData.termsAccepted && !completedSteps.has(1)) {
+      setTimeout(() => advanceToNextStep(1), 300);
+    }
+  }, [formData.verified, formData.termsAccepted, activeStep]);
+
+  // Fetch offices when user reaches Step 2 (Office selection)
+  useEffect(() => {
+    const fetchOffices = async () => {
+      if (activeStep === 2 && offices.length === 0 && !isLoadingOffices) {
+        setIsLoadingOffices(true);
+        try {
+          const response = await getOffice();
+          
+          if (response.data && Array.isArray(response.data)) {
+            setOffices(response.data);
+          }
+        } catch (error) {
+          console.error("Error fetching offices:", error);
+          setErrorMessage("Failed to load offices. Please refresh the page.");
+        } finally {
+          setIsLoadingOffices(false);
+        }
+      }
+    };
+
+    fetchOffices();
+  }, [activeStep, offices.length, isLoadingOffices]);
 
   // Handlers
   const handlePhoneChange = (e) => {
@@ -821,7 +908,8 @@ export default function VisitorForm() {
       const response = await verifyOtp({ txnId, otp: formData.otp });
 
       if (response?.success) {
-        setFormData({ ...formData, verified: true });
+        setFormData((prev) => ({ ...prev, verified: true }));
+        // Auto-advancement handled by useEffect
       } else {
         const errorMsg = response?.message || "OTP verification failed";
         throw new Error(errorMsg);
@@ -836,11 +924,8 @@ export default function VisitorForm() {
 
   const handleTermsChange = (e) => {
     const newTermsAccepted = e.target.checked;
-    setFormData({ ...formData, termsAccepted: newTermsAccepted });
-
-    if (newTermsAccepted && formData.verified) {
-      setTimeout(() => setActiveStep(1), 500);
-    }
+    setFormData((prev) => ({ ...prev, termsAccepted: newTermsAccepted }));
+    // Auto-advancement handled by useEffect
   };
 
   // Camera handlers
@@ -893,7 +978,7 @@ export default function VisitorForm() {
   const uploadSelfie = async () => {
     if (!formData.photo) {
       setErrorMessage("Please select a photo first.");
-      return false;
+      return null;
     }
 
     setIsUploadingSelfie(true);
@@ -905,7 +990,7 @@ export default function VisitorForm() {
       if (response?.success) {
         setSelfieResponse(response.data);
         setUploadedPhotoUrl(response.data.visitorSelfieUrl);
-        return true;
+        return response.data; // Return the data directly instead of just true
       } else {
         const errorMsg = response?.message || "Failed to upload selfie";
         throw new Error(errorMsg);
@@ -913,7 +998,7 @@ export default function VisitorForm() {
     } catch (error) {
       console.error("[API] Error uploading selfie:", error);
       setErrorMessage(extractApiErrorMessage(error));
-      return false;
+      return null;
     } finally {
       setIsUploadingSelfie(false);
     }
@@ -935,16 +1020,15 @@ export default function VisitorForm() {
       return;
     }
 
-    const uploadSuccess = await uploadSelfie();
-
-    if (uploadSuccess) {
-      setActiveStep(2);
-    }
+ 
+    advanceToNextStep(2);
   };
 
   const handlePurposeSelect = (purposeId) => {
-    setFormData({ ...formData, purpose: purposeId });
-    setTimeout(() => setActiveStep(3), 400);
+    setFormData((prev) => ({ ...prev, purpose: purposeId }));
+    // Mark step 4 as accessible immediately since purpose is being set
+    setCompletedSteps((prev) => new Set([...prev, 4]));
+    setTimeout(() => setActiveStep(4), 400);
   };
 
   const handleChange = (field) => (e) => {
@@ -953,12 +1037,13 @@ export default function VisitorForm() {
     setFormData({ ...formData, [field]: value });
   };
 
+
   const handleEdit = (step) => {
-    setActiveStep(step);
+    handleStepChange(step);
   };
 
   const handleSubmit = async () => {
-    if (!selfieResponse || !selfieResponse.visitorId) {
+    if (!formData.photo) {
       setErrorMessage("Please upload a photo before submitting.");
       return;
     }
@@ -966,30 +1051,90 @@ export default function VisitorForm() {
     setIsSubmitting(true);
     setErrorMessage("");
 
-    const visitorData = {
+    // Upload selfie first if not already uploaded
+    let visitorId = selfieResponse?.visitorId;
+    if (!visitorId) {
+      const uploadedData = await uploadSelfie();
+      if (!uploadedData) {
+        setIsSubmitting(false);
+        return;
+      }
+      // Use the visitorId from the upload response directly
+      visitorId = uploadedData.visitorId;
+    }
+
+    // Base visitor data
+    let visitorData = {
       visitorType: "external",
-      visitType: "personal",
-      firstName: formData.fullName.split(" ")[0] || formData.fullName,
-      lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
+      visitPurpose: selectedPurpose?.label || formData.purpose || "Other",
       phoneNo: formData.phone,
       governmentId: formData.governmentId,
-      visitDuration: formData.visitDuration,
-      visitPurpose: selectedPurpose?.label || formData.purpose || "Other",
-      department: formData.department,
-      personToMeet: formData.personToMeet,
-      officeId: 1,
+      officeId: formData.officeToVisit,
       registerdBy: "self",
-      company: formData.company || "",
     };
 
+    // Add purpose-specific fields
+    if (selectedPurpose?.id === "meeting") {
+      visitorData = {
+        ...visitorData,
+        visitType: "business",
+        visitDuration: "1",
+        firstName: formData.fullName.split(" ")[0] || formData.fullName,
+        lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
+        place: formData.place,
+        departmentOfVisit: formData.department,
+        personToMeet: formData.meetingWith,
+        companyName: formData.company,
+      };
+    } else if (selectedPurpose?.id === "interview") {
+      visitorData = {
+        ...visitorData,
+        visitType: "business",
+        visitDuration: "1",
+        firstName: formData.fullName.split(" ")[0] || formData.fullName,
+        lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
+        place: formData.place,
+        interviewType: INTERVIEW_TYPES.find(t => t.id === formData.interviewType)?.label || formData.interviewType,
+        departmentOfVisit: formData.department,
+        personToMeet: formData.personToMeet,
+      };
+    } else if (selectedPurpose?.id === "employee-visit") {
+      visitorData = {
+        ...visitorData,
+        visitType: "business",
+        employeeCode: formData.employeeCode,
+        firstName: formData.employeeName.split(" ")[0] || formData.employeeName,
+        lastName: formData.employeeName.split(" ").slice(1).join(" ") || "",
+        place: formData.place,
+        department: formData.yourDepartment,
+        visitDuration: formData.visitDays,
+      };
+    } else if (selectedPurpose?.id === "other-visit") {
+      visitorData = {
+        ...visitorData,
+        visitType: "personal",
+        visitDuration: "1",
+        firstName: formData.fullName.split(" ")[0] || formData.fullName,
+        lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
+        place: formData.place,
+        personToMeet: formData.personToMeet,
+        departmentOfVisit: formData.department,
+        otherVisitPurpose: formData.otherVisitPurpose,
+      };
+    }
+
     try {
+      // Use the visitorId we got from the upload
+      if (!visitorId) {
+        throw new Error("Failed to get visitor ID from photo upload");
+      }
+
       const response = await submitVisitorRequest(
-        selfieResponse.visitorId,
+        visitorId,
         visitorData,
       );
 
       if (response?.success || response?.data?.success) {
-        const visitorId = selfieResponse.visitorId;
         setGeneratedVisitorId(visitorId);
         setSubmissionSuccess(true);
         setIsSubmitted(true);
@@ -1017,6 +1162,7 @@ export default function VisitorForm() {
     setIsSubmitted(false);
     setSubmissionSuccess(false);
     setActiveStep(0);
+    setCompletedSteps(new Set([0])); // Reset completed steps
     setFormData(INITIAL_FORM_DATA);
     setTxnId("");
     setResendCountdown(0);
@@ -1030,31 +1176,40 @@ export default function VisitorForm() {
   const handleStepChange = (step) => {
     if (step < 0 || step > 5) return;
 
-    // Check validations before moving
-    if (step > activeStep) {
-      if (step === 1 && (!formData.verified || !formData.termsAccepted)) {
-        setErrorMessage("Please verify phone and accept terms first");
-        return;
-      }
-      if (step === 2 && !formData.photo) {
-        setErrorMessage("Please upload a photo first");
-        return;
-      }
-      if (step === 3 && !formData.purpose) {
-        setErrorMessage("Please select a purpose");
-        return;
-      }
-      if (step === 4 && !canProceedToMeetingInfo) {
-        setErrorMessage("Please fill all personal details");
-        return;
-      }
-      if (step === 5 && !canProceedToReview) {
-        setErrorMessage("Please fill all meeting details");
-        return;
-      }
+    // Only allow navigation to completed steps
+    if (!completedSteps.has(step)) {
+      setErrorMessage("Please complete the current step before proceeding");
+      return;
     }
 
     setActiveStep(step);
+  };
+
+  // Function to advance to next step after validation
+  const advanceToNextStep = (nextStep) => {
+    if (nextStep < 0 || nextStep > 5) return;
+
+    // Validate current step before advancing
+    if (nextStep === 1 && (!formData.verified || !formData.termsAccepted)) {
+      setErrorMessage("Please verify phone and accept terms first");
+      return;
+    }
+    if (nextStep === 2 && !formData.photo) {
+      setErrorMessage("Please upload a photo first");
+      return;
+    }
+    if (nextStep === 4 && !formData.purpose) {
+      setErrorMessage("Please select a purpose");
+      return;
+    }
+    if (nextStep === 5 && !canProceedToReview()) {
+      setErrorMessage("Please fill all required details");
+      return;
+    }
+
+    // Mark this step as completed and advance
+    setCompletedSteps((prev) => new Set([...prev, nextStep]));
+    setActiveStep(nextStep);
   };
 
   if (isSubmitted && submissionSuccess) {
@@ -1417,10 +1572,13 @@ export default function VisitorForm() {
                     },
                   }}
                 >
-                  {STEPS.map((label) => (
+                  {STEPS.map((label, index) => (
                     <Step key={label}>
                       <StepLabel
+                        onClick={() => handleStepChange(index)}
                         sx={{
+                          cursor: completedSteps.has(index) ? "pointer" : "not-allowed",
+                          opacity: completedSteps.has(index) ? 1 : 0.5,
                           "& .MuiStepLabel-label": {
                             color: "rgba(255, 255, 255, 0.7)",
                             fontSize: "0.8rem",
@@ -1432,6 +1590,13 @@ export default function VisitorForm() {
                               color: "#4caf50",
                             },
                           },
+                          "&:hover": completedSteps.has(index)
+                            ? {
+                                "& .MuiStepLabel-label": {
+                                  color: "#2196f3",
+                                },
+                              }
+                            : {},
                         }}
                       >
                         {label}
@@ -1999,8 +2164,135 @@ export default function VisitorForm() {
             </Box>
           )}
 
-          {/* Step 2: Purpose Selection */}
+          {/* Step 2: Office Selection */}
           {activeStep === 2 && (
+            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
+                <Avatar
+                  sx={{
+                    width: { xs: 60, sm: 80, md: 100 },
+                    height: { xs: 60, sm: 80, md: 100 },
+                    background:
+                      "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                    mb: { xs: 1.5, sm: 2 },
+                    mx: "auto",
+                    animation: `${float} 3s ease-in-out infinite`,
+                    boxShadow: "0 8px 32px rgba(245, 87, 108, 0.4)",
+                  }}
+                >
+                  <BusinessIcon sx={{ fontSize: { xs: 32, sm: 40, md: 50 } }} />
+                </Avatar>
+                <Typography
+                  variant={isMobile ? "h5" : "h4"}
+                  sx={{
+                    color: "white",
+                    fontWeight: 700,
+                    mb: { xs: 0.5, sm: 1 },
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" },
+                    background: "linear-gradient(135deg, #fff 0%, #ffe0e7 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                >
+                  Office to Visit
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(255, 255, 255, 0.7)",
+                    fontSize: { xs: "0.875rem", sm: "1rem" },
+                  }}
+                >
+                  Select which office you'll be visiting
+                </Typography>
+              </Box>
+
+              <Card
+                sx={{
+                  background: "rgba(255, 255, 255, 0.05)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: { xs: 3, sm: 4 },
+                  p: { xs: 3, sm: 4 },
+                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+                }}
+              >
+                <FormControl fullWidth required>
+                  <InputLabel
+                    sx={{
+                      color: "rgba(255, 255, 255, 0.7)",
+                      "&.Mui-focused": { color: "#f5576c" },
+                    }}
+                  >
+                    Office to Visit
+                  </InputLabel>
+                  <Select
+                    value={formData.officeToVisit}
+                    label="Office to Visit"
+                    disabled={isLoadingOffices}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        officeToVisit: e.target.value,
+                      }));
+                      advanceToNextStep(3);
+                    }}
+                    sx={{
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "white",
+                      borderRadius: 3,
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#f5576c80",
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#f5576c",
+                      },
+                      "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                          backdropFilter: "blur(20px)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          borderRadius: "12px",
+                          marginTop: "4px",
+                          maxHeight: { xs: 300, sm: 400 },
+                          "& .MuiMenuItem-root": {
+                            color: "rgba(255, 255, 255, 0.9)",
+                            "&:hover": { backgroundColor: "#f5576c30" },
+                            "&.Mui-selected": { 
+                              backgroundColor: "#f5576c40",
+                              "&:hover": { backgroundColor: "#f5576c50" },
+                            },
+                          },
+                        },
+                      },
+                    }}
+                  >
+                    {isLoadingOffices ? (
+                      <MenuItem disabled>Loading offices...</MenuItem>
+                    ) : !offices || offices.length === 0 ? (
+                      <MenuItem disabled>No offices available</MenuItem>
+                    ) : (
+                      offices.map((office) => (
+                        <MenuItem key={office.id} value={office.id}>
+                          {office.name}
+                        </MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
+              </Card>
+            </Box>
+          )}
+
+          {/* Step 3: Purpose Selection */}
+          {activeStep === 3 && (
             <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
               <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
                 <Avatar
@@ -2196,408 +2488,1019 @@ export default function VisitorForm() {
             </Box>
           )}
 
-          {/* Step 3: Personal Details */}
-          {activeStep === 3 && (
-            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
-              <Box sx={{ textAlign: "center", mb: 3 }}>
-                <Avatar
-                  sx={{
-                    width: isMobile ? 70 : 100,
-                    height: isMobile ? 70 : 100,
-                    background:
-                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                    mb: 2,
-                    mx: "auto",
-                    animation: `${float} 3s ease-in-out infinite`,
-                  }}
-                >
-                  <PersonPinIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
-                </Avatar>
-                <Typography
-                  variant={isMobile ? "h5" : "h6"}
-                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
-                >
-                  Personal Details
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "rgba(255, 255, 255, 0.6)",
-                    px: isMobile ? 2 : 0,
-                  }}
-                >
-                  Please provide your information
-                </Typography>
-              </Box>
-
-              <Stack spacing={isMobile ? 2 : 2.5}>
-                <TextField
-                  fullWidth
-                  label="Full Name"
-                  value={formData.fullName}
-                  onChange={handleChange("fullName")}
-                  placeholder="Enter your full name"
-                  autoComplete="off"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PersonIcon sx={{ color: "#2196f3" }} />
-                      </InputAdornment>
-                    ),
-                    inputProps: { autoComplete: "off", name: "visitor-name-dnf" },
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      borderRadius: 3,
-                      "& fieldset": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#2196f3",
-                        boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "rgba(255, 255, 255, 0.7)",
-                    },
-                  }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Company/Organization"
-                  value={formData.company}
-                  onChange={handleChange("company")}
-                  placeholder="Enter company name"
-                  autoComplete="off"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <BusinessIcon sx={{ color: "#2196f3" }} />
-                      </InputAdornment>
-                    ),
-                    inputProps: { autoComplete: "off", name: "visitor-company-dnf" },
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      borderRadius: 3,
-                      "& fieldset": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                    },
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  label="Government ID Number"
-                  value={formData.governmentId}
-                  onChange={handleChange("governmentId")}
-                  placeholder="Aadhar, PAN, Driving License, etc."
-                  autoComplete="off"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <BadgeIcon sx={{ color: "#2196f3" }} />
-                      </InputAdornment>
-                    ),
-                    inputProps: { autoComplete: "off", name: "visitor-govid-dnf" },
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      borderRadius: 3,
-                      "& fieldset": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                    },
-                  }}
-                />
-
-                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => handleStepChange(activeStep + 1)}
-                    disabled={!canProceedToMeetingInfo}
-                    endIcon={<ArrowForwardIcon />}
-                    sx={{
-                      background:
-                        "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                      color: "white",
-                      py: isMobile ? 1.25 : 1.5,
-                      borderRadius: 3,
-                      fontSize: isMobile ? "1rem" : "1.1rem",
-                      fontWeight: 600,
-                      "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-                      },
-                      "&:disabled": {
-                        background: "rgba(255, 255, 255, 0.1)",
-                        color: "rgba(255, 255, 255, 0.3)",
-                      },
-                    }}
-                  >
-                    Continue
-                  </Button>
-                </Box>
-              </Stack>
-            </Box>
-          )}
-
-          {/* Step 4: Meeting Information */}
+          {/* Step 4: Dynamic Details Based on Purpose */}
           {activeStep === 4 && (
             <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
-              <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
                 <Avatar
                   sx={{
-                    width: isMobile ? 70 : 100,
-                    height: isMobile ? 70 : 100,
-                    background:
-                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
-                    mb: 2,
+                    width: { xs: 70, sm: 90, md: 100 },
+                    height: { xs: 70, sm: 90, md: 100 },
+                    background: selectedPurpose?.color
+                      ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                      : "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    mb: { xs: 1.5, sm: 2 },
                     mx: "auto",
                     animation: `${float} 3s ease-in-out infinite`,
+                    boxShadow: selectedPurpose?.color
+                      ? `0 8px 32px ${selectedPurpose.color}60`
+                      : "0 8px 32px rgba(33, 150, 243, 0.4)",
                   }}
                 >
-                  <MeetingRoomIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
+                  <Typography sx={{ fontSize: { xs: 40, sm: 48, md: 56 } }}>
+                    {selectedPurpose?.icon || "📋"}
+                  </Typography>
                 </Avatar>
                 <Typography
-                  variant={isMobile ? "h5" : "h6"}
-                  sx={{ color: "white", fontWeight: 600, mb: 1 }}
+                  variant={isMobile ? "h5" : "h4"}
+                  sx={{ 
+                    color: "white", 
+                    fontWeight: 700, 
+                    mb: { xs: 0.5, sm: 1 },
+                    background: "linear-gradient(135deg, #fff 0%, #e0e7ff 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
                 >
-                  Meeting Details
+                  {selectedPurpose?.label} Details
                 </Typography>
                 <Typography
                   variant="body2"
                   sx={{
-                    color: "rgba(255, 255, 255, 0.6)",
-                    px: isMobile ? 2 : 0,
+                    color: "rgba(255, 255, 255, 0.7)",
+                    px: { xs: 2, sm: 0 },
                   }}
                 >
-                  Who are you here to meet?
+                  Please provide the required information
                 </Typography>
               </Box>
 
-              <Stack spacing={isMobile ? 2 : 2.5}>
-                <TextField
-                  fullWidth
-                  label="Person to Meet"
-                  value={formData.personToMeet}
-                  onChange={handleChange("personToMeet")}
-                  placeholder="Enter person's name"
-                  autoComplete="off"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PersonIcon sx={{ color: "#2196f3" }} />
-                      </InputAdornment>
-                    ),
-                    inputProps: { autoComplete: "off", name: "visitor-person-dnf" },
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      borderRadius: 3,
-                      "& fieldset": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#2196f3",
-                        boxShadow: "0 0 0 2px rgba(33, 150, 243, 0.1)",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "rgba(255, 255, 255, 0.7)",
-                    },
-                  }}
-                />
-
-                <FormControl fullWidth>
-                  <InputLabel
-                    sx={{
-                      color: "rgba(255, 255, 255, 0.7)",
-                      "&.Mui-focused": { color: "#2196f3" },
-                    }}
-                  >
-                    Department
-                  </InputLabel>
-                  <Select
-                    value={formData.department}
-                    label="Department"
-                    onChange={handleChange("department")}
-                    sx={{
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      borderRadius: 3,
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
-                      },
-                      "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#2196f3",
-                      },
-                      "& .MuiSelect-icon": {
-                        color: "rgba(255, 255, 255, 0.7)",
-                      },
-                    }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          background:
-                            "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
-                          backdropFilter: "blur(20px)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
-                          borderRadius: "12px",
-                          marginTop: "4px",
-                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.5)",
-                          maxHeight: isMobile ? 300 : 400,
-                          "& .MuiMenuItem-root": {
-                            color: "rgba(255, 255, 255, 0.9)",
-                            backgroundColor: "transparent",
-                            padding: "12px 16px",
-                            "&:hover": {
-                              backgroundColor: "rgba(33, 150, 243, 0.2)",
-                            },
-                            "&.Mui-selected": {
-                              backgroundColor: "rgba(33, 150, 243, 0.3)",
-                              "&:hover": {
-                                backgroundColor: "rgba(33, 150, 243, 0.4)",
-                              },
-                            },
+              <Stack spacing={{ xs: 2, sm: 2.5 }}>
+                {/* Meeting: Person name, Place, Department, Meeting with whom, Company name, Govt ID */}
+                {selectedPurpose?.id === "meeting" && (
+                  <>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Person Name"
+                      value={formData.fullName}
+                      onChange={handleChange("fullName")}
+                      placeholder="Enter your full name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off", name: "visitor-name-dnf" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                      },
-                    }}
-                  >
-                    {DEPARTMENTS.map((dept) => (
-                      <MenuItem
-                        key={dept}
-                        value={dept}
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Place"
+                      value={formData.place}
+                      onChange={handleChange("place")}
+                      placeholder="Enter location/place"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <FormControl fullWidth required>
+                      <InputLabel
                         sx={{
-                          color: "rgba(255, 255, 255, 0.9)",
-                          "&:hover": {
-                            backgroundColor: "rgba(33, 150, 243, 0.2)",
+                          color: "rgba(255, 255, 255, 0.7)",
+                          "&.Mui-focused": { color: selectedPurpose.color },
+                        }}
+                      >
+                        Department to Visit
+                      </InputLabel>
+                      <Select
+                        value={formData.department}
+                        label="Department to Visit"
+                        onChange={handleChange("department")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: selectedPurpose.color,
+                          },
+                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)"  },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              maxHeight: { xs: 300, sm: 400 },
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
+                                "&.Mui-selected": { 
+                                  backgroundColor: `${selectedPurpose.color}40`,
+                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                },
+                              },
+                            },
                           },
                         }}
                       >
-                        {dept}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                        {DEPARTMENTS.map((dept) => (
+                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
 
-                <FormControl fullWidth>
-                  <InputLabel
-                    sx={{
-                      color: "rgba(255, 255, 255, 0.7)",
-                      "&.Mui-focused": { color: "#2196f3" },
-                    }}
-                  >
-                    Visit Duration
-                  </InputLabel>
-                  <Select
-                    value={formData.visitDuration}
-                    label="Visit Duration"
-                    onChange={handleChange("visitDuration")}
-                    sx={{
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "white",
-                      borderRadius: 3,
-                      "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
-                      },
-                      "&:hover .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "rgba(33, 150, 243, 0.5)",
-                      },
-                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                        borderColor: "#2196f3",
-                      },
-                      "& .MuiSelect-icon": {
-                        color: "rgba(255, 255, 255, 0.7)",
-                      },
-                    }}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          background:
-                            "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
-                          backdropFilter: "blur(20px)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
-                          borderRadius: "12px",
-                          marginTop: "4px",
-                          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.5)",
-                          maxHeight: isMobile ? 300 : 400,
-                          "& .MuiMenuItem-root": {
-                            color: "rgba(255, 255, 255, 0.9)",
-                            backgroundColor: "transparent",
-                            padding: "12px 16px",
-                            "&:hover": {
-                              backgroundColor: "rgba(33, 150, 243, 0.2)",
-                            },
-                            "&.Mui-selected": {
-                              backgroundColor: "rgba(33, 150, 243, 0.3)",
-                              "&:hover": {
-                                backgroundColor: "rgba(33, 150, 243, 0.4)",
+                    <TextField
+                      fullWidth
+                      required
+                      label="Meeting With Whom"
+                      value={formData.meetingWith}
+                      onChange={handleChange("meetingWith")}
+                      placeholder="Enter person's name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <MeetingRoomIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Company Name"
+                      value={formData.company}
+                      onChange={handleChange("company")}
+                      placeholder="Enter your company/organization"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessCenterIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Government ID"
+                      value={formData.governmentId}
+                      onChange={handleChange("governmentId")}
+                      placeholder="Aadhar, PAN, Driving License, etc."
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BadgeIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* Interview: Person name, Place, Interview type (dropdown), Department, Person to meet, Govt ID */}
+                {selectedPurpose?.id === "interview" && (
+                  <>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Person Name"
+                      value={formData.fullName}
+                      onChange={handleChange("fullName")}
+                      placeholder="Enter your full name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Place"
+                      value={formData.place}
+                      onChange={handleChange("place")}
+                      placeholder="Enter location/place"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <FormControl fullWidth required>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          "&.Mui-focused": { color: selectedPurpose.color },
+                        }}
+                      >
+                        Interview Type
+                      </InputLabel>
+                      <Select
+                        value={formData.interviewType}
+                        label="Interview Type"
+                        onChange={handleChange("interviewType")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: selectedPurpose.color,
+                          },
+                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              maxHeight: { xs: 300, sm: 400 },
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
+                                "&.Mui-selected": { 
+                                  backgroundColor: `${selectedPurpose.color}40`,
+                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                },
                               },
                             },
                           },
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="1">1 Day</MenuItem>
-                    <MenuItem value="2">2 Days</MenuItem>
-                    <MenuItem value="3">3 Days</MenuItem>
-                    <MenuItem value="5">5 Days</MenuItem>
-                    <MenuItem value="7">1 Week</MenuItem>
-                    <MenuItem value="14">2 Weeks</MenuItem>
-                    <MenuItem value="30">1 Month</MenuItem>
-                  </Select>
-                </FormControl>
+                        }}
+                      >
+                        {INTERVIEW_TYPES.map((type) => (
+                          <MenuItem key={type.id} value={type.id}>{type.label}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
 
-                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+                    <FormControl fullWidth required>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          "&.Mui-focused": { color: selectedPurpose.color },
+                        }}
+                      >
+                        Department to Visit
+                      </InputLabel>
+                      <Select
+                        value={formData.department}
+                        label="Department to Visit"
+                        onChange={handleChange("department")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: selectedPurpose.color,
+                          },
+                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              maxHeight: { xs: 300, sm: 400 },
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
+                                "&.Mui-selected": { 
+                                  backgroundColor: `${selectedPurpose.color}40`,
+                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        {DEPARTMENTS.map((dept) => (
+                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Person to Meet"
+                      value={formData.personToMeet}
+                      onChange={handleChange("personToMeet")}
+                      placeholder="Enter person's name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonPinIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Government ID"
+                      value={formData.governmentId}
+                      onChange={handleChange("governmentId")}
+                      placeholder="Aadhar, PAN, Driving License, etc."
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BadgeIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* Employee Visit: Employee code, Employee name, Place, Your Department, Visit days, Govt ID */}
+                {selectedPurpose?.id === "employee-visit" && (
+                  <>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Employee Code"
+                      value={formData.employeeCode}
+                      onChange={handleChange("employeeCode")}
+                      placeholder="Enter your employee code"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BadgeIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Employee Name"
+                      value={formData.employeeName}
+                      onChange={handleChange("employeeName")}
+                      placeholder="Enter your full name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Place"
+                      value={formData.place}
+                      onChange={handleChange("place")}
+                      placeholder="Enter location/place"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <FormControl fullWidth required>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          "&.Mui-focused": { color: selectedPurpose.color },
+                        }}
+                      >
+                        Your Department
+                      </InputLabel>
+                      <Select
+                        value={formData.yourDepartment}
+                        label="Your Department"
+                        onChange={handleChange("yourDepartment")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: selectedPurpose.color,
+                          },
+                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              maxHeight: { xs: 300, sm: 400 },
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
+                                "&.Mui-selected": { 
+                                  backgroundColor: `${selectedPurpose.color}40`,
+                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        {DEPARTMENTS.map((dept) => (
+                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Visit Days"
+                      value={formData.visitDays}
+                      onChange={handleChange("visitDays")}
+                      placeholder="Enter number of days"
+                      type="number"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <ScheduleIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off", min: 1 },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Government ID"
+                      value={formData.governmentId}
+                      onChange={handleChange("governmentId")}
+                      placeholder="Aadhar, PAN, Driving License, etc."
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BadgeIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* Other Visit: Name, Place, Person to meet, Department, Purpose dropdown, Govt ID */}
+                {selectedPurpose?.id === "other-visit" && (
+                  <>
+                    <TextField
+                      fullWidth
+                      required
+                      label="Your Name"
+                      value={formData.fullName}
+                      onChange={handleChange("fullName")}
+                      placeholder="Enter your full name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Place"
+                      value={formData.place}
+                      onChange={handleChange("place")}
+                      placeholder="Enter location/place"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Person to Meet"
+                      value={formData.personToMeet}
+                      onChange={handleChange("personToMeet")}
+                      placeholder="Enter person's name"
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonPinIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+
+                    <FormControl fullWidth required>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          "&.Mui-focused": { color: selectedPurpose.color },
+                        }}
+                      >
+                        Department to Visit
+                      </InputLabel>
+                      <Select
+                        value={formData.department}
+                        label="Department to Visit"
+                        onChange={handleChange("department")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: selectedPurpose.color,
+                          },
+                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              maxHeight: { xs: 300, sm: 400 },
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
+                                "&.Mui-selected": { 
+                                  backgroundColor: `${selectedPurpose.color}40`,
+                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        {DEPARTMENTS.map((dept) => (
+                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth required>
+                      <InputLabel
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.7)",
+                          "&.Mui-focused": { color: selectedPurpose.color },
+                        }}
+                      >
+                        Visit Purpose
+                      </InputLabel>
+                      <Select
+                        value={formData.otherVisitPurpose}
+                        label="Visit Purpose"
+                        onChange={handleChange("otherVisitPurpose")}
+                        sx={{
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& .MuiOutlinedInput-notchedOutline": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover .MuiOutlinedInput-notchedOutline": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                            borderColor: selectedPurpose.color,
+                          },
+                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            sx: {
+                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              backdropFilter: "blur(20px)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              marginTop: "4px",
+                              maxHeight: { xs: 300, sm: 400 },
+                              "& .MuiMenuItem-root": {
+                                color: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
+                                "&.Mui-selected": { 
+                                  backgroundColor: `${selectedPurpose.color}40`,
+                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                },
+                              },
+                            },
+                          },
+                        }}
+                      >
+                        {OTHER_VISIT_PURPOSES.map((purpose) => (
+                          <MenuItem key={purpose} value={purpose}>{purpose}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      fullWidth
+                      required
+                      label="Government ID"
+                      value={formData.governmentId}
+                      onChange={handleChange("governmentId")}
+                      placeholder="Aadhar, PAN, Driving License, etc."
+                      autoComplete="off"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BadgeIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                        inputProps: { autoComplete: "off" },
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          color: "white",
+                          borderRadius: 3,
+                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                          "&.Mui-focused fieldset": { 
+                            borderColor: selectedPurpose.color,
+                            boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                          },
+                        },
+                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                      }}
+                    />
+                  </>
+                )}
+
+                <Box sx={{ display: "flex", gap: 2, mt: { xs: 2, sm: 3 } }}>
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={() => handleStepChange(activeStep + 1)}
-                    disabled={!canProceedToReview}
+                    onClick={() => advanceToNextStep(activeStep + 1)}
+                    disabled={!canProceedToReview()}
                     endIcon={<ArrowForwardIcon />}
                     sx={{
-                      background:
-                        "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                      background: selectedPurpose?.color
+                        ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                        : "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
                       color: "white",
-                      py: isMobile ? 1.25 : 1.5,
+                      py: { xs: 1.25, sm: 1.5 },
                       borderRadius: 3,
-                      fontSize: isMobile ? "1rem" : "1.1rem",
+                      fontSize: { xs: "1rem", sm: "1.1rem" },
                       fontWeight: 600,
+                      boxShadow: selectedPurpose?.color
+                        ? `0 8px 24px ${selectedPurpose.color}40`
+                        : "0 8px 24px rgba(33, 150, 243, 0.4)",
                       "&:hover": {
-                        background:
-                          "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                        background: selectedPurpose?.color
+                          ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                          : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                        boxShadow: selectedPurpose?.color
+                          ? `0 12px 32px ${selectedPurpose.color}60`
+                          : "0 12px 32px rgba(33, 150, 243, 0.6)",
                       },
                       "&:disabled": {
                         background: "rgba(255, 255, 255, 0.1)",
                         color: "rgba(255, 255, 255, 0.3)",
+                        boxShadow: "none",
                       },
                     }}
                   >
@@ -2677,10 +3580,10 @@ export default function VisitorForm() {
                 />
                 <ReviewItemMobile
                   label="Visitor Photo"
-                  value={selfieResponse ? "Uploaded ✓" : "Not uploaded"}
+                  value={formData.photo ? "Photo Captured ✓" : "Not captured"}
                   subValue={
-                    selfieResponse
-                      ? `Visitor ID: ${selfieResponse.visitorId}`
+                    formData.photo
+                      ? "Ready for submission"
                       : undefined
                   }
                   icon={<CameraAltIcon />}
@@ -2691,35 +3594,239 @@ export default function VisitorForm() {
                   label="Purpose of Visit"
                   value={selectedPurpose?.label}
                   icon={<BusinessCenterIcon />}
-                  onEdit={() => handleEdit(2)}
+                  onEdit={() => handleEdit(3)}
                   color={selectedPurpose?.color}
                 />
-                <ReviewItemMobile
-                  label="Personal Details"
-                  value={formData.fullName}
-                  subValue={`${formData.company} | ID: ${formData.governmentId}`}
-                  icon={<PersonIcon />}
-                  onEdit={() => handleEdit(3)}
-                />
-                <ReviewItemMobile
-                  label="Meeting Details"
-                  value={formData.personToMeet}
-                  subValue={`${formData.department} | Duration: ${
-                    formData.visitDuration
-                  } ${formData.visitDuration === "1" ? "Day" : "Days"}`}
-                  icon={<MeetingRoomIcon />}
-                  onEdit={() => handleEdit(4)}
-                />
+
+                {/* Meeting specific fields */}
+                {selectedPurpose?.id === "meeting" && (
+                  <>
+                    <ReviewItemMobile
+                      label="Person Name"
+                      value={formData.fullName}
+                      icon={<PersonIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Place"
+                      value={formData.place}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Office to Visit"
+                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      icon={<BusinessCenterIcon />}
+                      onEdit={() => handleEdit(2)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Department"
+                      value={formData.department}
+                      icon={<BusinessCenterIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Meeting With"
+                      value={formData.meetingWith}
+                      icon={<MeetingRoomIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Company"
+                      value={formData.company}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Government ID"
+                      value={formData.governmentId}
+                      icon={<BadgeIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                  </>
+                )}
+
+                {/* Interview specific fields */}
+                {selectedPurpose?.id === "interview" && (
+                  <>
+                    <ReviewItemMobile
+                      label="Person Name"
+                      value={formData.fullName}
+                      icon={<PersonIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Place"
+                      value={formData.place}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Office to Visit"
+                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      icon={<BusinessCenterIcon />}
+                      onEdit={() => handleEdit(2)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Interview Type"
+                      value={INTERVIEW_TYPES.find(t => t.id === formData.interviewType)?.label || formData.interviewType}
+                      icon={<ScheduleIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Department"
+                      value={formData.department}
+                      icon={<BusinessCenterIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Person to Meet"
+                      value={formData.personToMeet}
+                      icon={<PersonPinIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Government ID"
+                      value={formData.governmentId}
+                      icon={<BadgeIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                  </>
+                )}
+
+                {/* Employee Visit specific fields */}
+                {selectedPurpose?.id === "employee-visit" && (
+                  <>
+                    <ReviewItemMobile
+                      label="Employee Code"
+                      value={formData.employeeCode}
+                      icon={<BadgeIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Employee Name"
+                      value={formData.employeeName}
+                      icon={<PersonIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Place"
+                      value={formData.place}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Office to Visit"
+                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(2)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Your Department"
+                      value={formData.yourDepartment}
+                      icon={<BusinessCenterIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Visit Days"
+                      value={`${formData.visitDays} ${formData.visitDays === "1" ? "day" : "days"}`}
+                      icon={<ScheduleIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Government ID"
+                      value={formData.governmentId}
+                      icon={<BadgeIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                  </>
+                )}
+
+                {/* Other Visit specific fields */}
+                {selectedPurpose?.id === "other-visit" && (
+                  <>
+                    <ReviewItemMobile
+                      label="Your Name"
+                      value={formData.fullName}
+                      icon={<PersonIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Place"
+                      value={formData.place}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Office to Visit"
+                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      icon={<BusinessIcon />}
+                      onEdit={() => handleEdit(2)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Person to Meet"
+                      value={formData.personToMeet}
+                      icon={<PersonPinIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Department"
+                      value={formData.department}
+                      icon={<BusinessCenterIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Visit Purpose"
+                      value={formData.otherVisitPurpose}
+                      icon={<FactCheckIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                    <ReviewItemMobile
+                      label="Government ID"
+                      value={formData.governmentId}
+                      icon={<BadgeIcon />}
+                      onEdit={() => handleEdit(4)}
+                      color={selectedPurpose?.color}
+                    />
+                  </>
+                )}
 
                 <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                   <Button
                     fullWidth
                     variant="contained"
                     onClick={handleSubmit}
-                    disabled={isSubmitting || !selfieResponse}
+                    disabled={isSubmitting || !formData.photo}
                     sx={{
                       background:
-                        isSubmitting || !selfieResponse
+                        isSubmitting || !formData.photo
                           ? "rgba(33, 150, 243, 0.5)"
                           : "linear-gradient(135deg, #4caf50 0%, #388e3c 100%)",
                       color: "white",
@@ -2729,7 +3836,7 @@ export default function VisitorForm() {
                       fontWeight: 600,
                       "&:hover": {
                         background:
-                          isSubmitting || !selfieResponse
+                          isSubmitting || !formData.photo
                             ? "rgba(33, 150, 243, 0.5)"
                             : "linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)",
                       },
@@ -2775,6 +3882,7 @@ export default function VisitorForm() {
         activeStep={activeStep}
         onStepChange={handleStepChange}
         isMobile={isMobile}
+        completedSteps={completedSteps}
       />
     </Box>
   );
