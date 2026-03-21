@@ -30,8 +30,6 @@ import {
   TableRow,
   TablePagination,
   Tooltip,
-  Switch,
-  FormControlLabel,
   Autocomplete,
   Avatar,
   Collapse,
@@ -42,7 +40,6 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   Home as HomeIcon,
-  Groups as GroupsIcon,
   LocationOn as LocationIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
@@ -77,34 +74,6 @@ const Management = () => {
   // Offices State (Now from API)
   const [offices, setOffices] = useState([]);
 
-  // Visitor Types State
-  const [visitorTypes, setVisitorTypes] = useState([
-    {
-      id: 1,
-      name: "Business Visitor",
-      duration: "8 hours",
-      requiresApproval: true,
-    },
-    {
-      id: 2,
-      name: "Client Meeting",
-      duration: "4 hours",
-      requiresApproval: false,
-    },
-    {
-      id: 3,
-      name: "Contractor",
-      duration: "Multiple days",
-      requiresApproval: true,
-    },
-    {
-      id: 4,
-      name: "Family Visit",
-      duration: "2 hours",
-      requiresApproval: false,
-    },
-  ]);
-
   const [newGuestHouse, setNewGuestHouse] = useState({
     name: "",
     address: "",
@@ -115,12 +84,6 @@ const Management = () => {
     name: "",
     address: "",
     buildingType: "offices", 
-  });
-
-  const [newVisitorType, setNewVisitorType] = useState({
-    name: "",
-    duration: "",
-    requiresApproval: true,
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [editMode, setEditMode] = useState(false);
@@ -143,7 +106,6 @@ const Management = () => {
       color: "#48BB78",
       buildingType: "guestHouses",
     },
-    // { label: "Visitor Types", icon: <GroupsIcon />, color: "#ED8936" },
     {
       label: "Offices",
       icon: <LocationIcon />,
@@ -179,7 +141,7 @@ const Management = () => {
           location: office.address,
           address: office.address,
           status: office.status || "active",
-          buildingType: "offices", // FIXED: Use plural form
+          buildingType: "offices", 
           createdAt: office.createdAt,
           createdBy: office.user?.employeeName || "System",
         }));
@@ -234,9 +196,6 @@ const Management = () => {
           address: "",
           buildingType: "offices", // FIXED: Use plural form
         });
-        break;
-      case "visitorType":
-        setNewVisitorType({ name: "", duration: "", requiresApproval: true });
         break;
     }
   };
@@ -336,28 +295,6 @@ const Management = () => {
             );
           }
           break;
-
-        case "visitorType":
-          // For visitor types (not using API, local state only)
-          if (editMode) {
-            setVisitorTypes(
-              visitorTypes.map((type) =>
-                type.id === currentEditId
-                  ? { ...newVisitorType, id: currentEditId }
-                  : type
-              )
-            );
-            showSnackbar("Visitor type updated successfully", "success");
-          } else {
-            const newType = {
-              ...newVisitorType,
-              id: visitorTypes.length + 1,
-            };
-            setVisitorTypes([...visitorTypes, newType]);
-            showSnackbar("Visitor type added successfully", "success");
-          }
-          handleCloseDialog();
-          break;
       }
     } catch (error) {
       console.error("Error in handleSave:", error);
@@ -371,16 +308,6 @@ const Management = () => {
     // Note: For now, we're only allowing creation via API
     // If you need edit functionality, you'll need an update API endpoint
     showSnackbar("Edit functionality requires an update API endpoint", "info");
-
-    // For visitor types (local state only)
-    if (type === "visitorType") {
-      setDialogType(type);
-      setEditMode(true);
-      setCurrentEditId(id);
-      const typeToEdit = visitorTypes.find((type) => type.id === id);
-      setNewVisitorType(typeToEdit);
-      setOpenDialog(true);
-    }
   };
 
   const handleDelete = (type, id) => {
@@ -399,10 +326,6 @@ const Management = () => {
             "Delete functionality requires a delete API endpoint",
             "info"
           );
-          break;
-        case "visitorType":
-          setVisitorTypes(visitorTypes.filter((vtype) => vtype.id !== id));
-          showSnackbar("Visitor type deleted successfully", "success");
           break;
       }
     }
@@ -449,8 +372,6 @@ const Management = () => {
       case 0:
         return guestHouses;
       case 1:
-        return visitorTypes;
-      case 2:
         return offices;
       default:
         return [];
@@ -602,81 +523,7 @@ const Management = () => {
           </TableContainer>
         );
 
-      case 1: // Visitor Types
-        return (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Visitor Type</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Approval Required</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.map((type) => (
-                  <TableRow key={type.id} hover>
-                    <TableCell>
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                      >
-                        <Avatar
-                          sx={{
-                            bgcolor: tabs[selectedTab].color,
-                            width: 40,
-                            height: 40,
-                          }}
-                        >
-                          <GroupsIcon />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="subtitle2">
-                            {type.name}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{type.duration}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={type.requiresApproval ? "Yes" : "No"}
-                        color={type.requiresApproval ? "warning" : "success"}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "center",
-                          gap: 1,
-                        }}
-                      >
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit("visitorType", type.id)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete("visitorType", type.id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        );
-
-      case 2: // Offices (from API)
+      case 1: // Offices (from API)
         return (
           <TableContainer>
             <Table>
@@ -853,52 +700,6 @@ const Management = () => {
           </>
         );
 
-      case "visitorType":
-        return (
-          <>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Visitor Type Name"
-              fullWidth
-              value={newVisitorType.name}
-              onChange={(e) =>
-                setNewVisitorType({ ...newVisitorType, name: e.target.value })
-              }
-              required
-            />
-            <TextField
-              margin="dense"
-              label="Default Duration"
-              fullWidth
-              value={newVisitorType.duration}
-              onChange={(e) =>
-                setNewVisitorType({
-                  ...newVisitorType,
-                  duration: e.target.value,
-                })
-              }
-              sx={{ mt: 2 }}
-              required
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={newVisitorType.requiresApproval}
-                  onChange={(e) =>
-                    setNewVisitorType({
-                      ...newVisitorType,
-                      requiresApproval: e.target.checked,
-                    })
-                  }
-                />
-              }
-              label="Requires Approval"
-              sx={{ mt: 2 }}
-            />
-          </>
-        );
-
       default:
         return null;
     }
@@ -937,9 +738,6 @@ const Management = () => {
                   handleOpenDialog("guestHouse");
                   break;
                 case 1:
-                  handleOpenDialog("visitorType");
-                  break;
-                case 2:
                   handleOpenDialog("office");
                   break;
                 default:

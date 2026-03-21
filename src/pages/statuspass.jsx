@@ -17,6 +17,7 @@ import {
   Fade,
   Grow,
   Slide,
+  Badge,
 } from "@mui/material";
 import {
   CheckCircle as CheckCircleIcon,
@@ -34,9 +35,14 @@ import {
   ErrorOutline as ErrorOutlineIcon,
   SentimentVeryDissatisfied as SadIcon,
   CalendarMonth as CalendarIcon,
+  Verified as VerifiedIcon,
 } from "@mui/icons-material";
 import { keyframes } from "@emotion/react";
 import { getVisitorStatus } from "../utilities/apiUtils/apiHelper";
+import { determineHost } from "../utilities/commonutilities";
+
+// API Base URL
+const API_BASE_URL = determineHost();
 
 // Animations
 const bounce = keyframes`
@@ -77,6 +83,7 @@ const StatusPass = () => {
   const [loading, setLoading] = useState(true);
   const [apiResponse, setApiResponse] = useState(null);
   const [responseType, setResponseType] = useState(null); // 'pending', 'approved', 'rejected', 'notFound'
+  const [imageError, setImageError] = useState(false);
 
   const visitorId = searchParams.get("id");
 
@@ -90,6 +97,7 @@ const StatusPass = () => {
 
       try {
         setLoading(true);
+        setImageError(false); // Reset image error state
         const response = await getVisitorStatus(visitorId);
 
         setApiResponse(response);
@@ -170,7 +178,6 @@ const StatusPass = () => {
       </Box>
     );
   }
-
   // Case 1: Pending Status - Only show message
   if (responseType === "pending") {
     return (
@@ -677,20 +684,46 @@ const StatusPass = () => {
                 <Box
                   sx={{
                     animation: `${rotateGlow} 2s ease-in-out infinite`,
+                    display: "inline-block",
                   }}
                 >
-                  <Avatar
-                    sx={{
-                      width: isMobile ? 80 : 100,
-                      height: isMobile ? 80 : 100,
-                      bgcolor: "#4caf5020",
-                      color: "#4caf50",
-                      margin: "0 auto 20px",
-                      border: "3px solid #4caf50",
-                    }}
+                  <Badge
+                    overlap="circular"
+                    anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                    badgeContent={
+                      visitorData?.isVerified && (
+                        <VerifiedIcon
+                          sx={{
+                            color: "#2196f3",
+                            bgcolor: "white",
+                            borderRadius: "50%",
+                            fontSize: isMobile ? 24 : 30,
+                          }}
+                        />
+                      )
+                    }
                   >
-                    <CheckCircleIcon sx={{ fontSize: isMobile ? 40 : 50 }} />
-                  </Avatar>
+                    <Avatar
+                      src={!imageError && visitorData?.visitorSelfie ? visitorData.visitorSelfie : undefined}
+                      imgProps={{
+                        crossOrigin: "anonymous",
+                        onError: () => setImageError(true)
+                      }}
+                      sx={{
+                        width: isMobile ? 100 : 120,
+                        height: isMobile ? 100 : 120,
+                        bgcolor: "#4caf5020",
+                        color: "#4caf50",
+                        margin: "0 auto 20px",
+                        border: "3px solid #4caf50",
+                        fontSize: isMobile ? 40 : 50,
+                      }}
+                    >
+                      {(!visitorData?.visitorSelfie || imageError) && (
+                        <PersonPinIcon sx={{ fontSize: isMobile ? 50 : 60 }} />
+                      )}
+                    </Avatar>
+                  </Badge>
                 </Box>
 
                 <Typography

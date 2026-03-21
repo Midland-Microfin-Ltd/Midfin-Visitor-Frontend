@@ -224,3 +224,19 @@ export const getVisitorStatus = async (visitorId) => {
     throw error;
   }
 };
+
+
+export const getOffice = async () => {
+  try {
+    const response = await apiClient.get(
+      '/api/v1/admin/office'
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * @returns {Promise}
+ */
