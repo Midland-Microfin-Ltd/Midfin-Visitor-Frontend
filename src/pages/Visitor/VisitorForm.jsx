@@ -1631,7 +1631,32 @@ export default function VisitorForm() {
 
           {/* Step 0: Phone Verification */}
           {activeStep === 0 && (
-            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+            <Box sx={{ 
+              animation: `${fadeInUp} 0.5s ease-out`,
+              ...(isMobile && {
+                maxHeight: "calc(100vh - 220px)",
+                overflowY: "auto",
+                pb: 6,
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  marginRight: "3px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(33, 150, 243, 0.3)",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(33, 150, 243, 0.1)",
+                  "&:hover": {
+                    background: "rgba(33, 150, 243, 0.5)",
+                  },
+                },
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                pr: "2px",
+              }),
+            }}>
               <Box sx={{ textAlign: "center", mb: 3 }}>
                 <Avatar
                   sx={{
@@ -1959,7 +1984,32 @@ export default function VisitorForm() {
 
           {/* Step 1: Photo Upload */}
           {activeStep === 1 && (
-            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+            <Box sx={{ 
+              animation: `${fadeInUp} 0.5s ease-out`,
+              ...(isMobile && {
+                maxHeight: "calc(100vh - 220px)",
+                overflowY: "auto",
+                pb: 6,
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  marginRight: "3px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(33, 150, 243, 0.3)",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(33, 150, 243, 0.1)",
+                  "&:hover": {
+                    background: "rgba(33, 150, 243, 0.5)",
+                  },
+                },
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                pr: "2px",
+              }),
+            }}>
               {showCamera ? (
                 <CameraComponent
                   onCapture={handleCapturePhoto}
@@ -2166,7 +2216,32 @@ export default function VisitorForm() {
 
           {/* Step 2: Office Selection */}
           {activeStep === 2 && (
-            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+            <Box sx={{ 
+              animation: `${fadeInUp} 0.5s ease-out`,
+              ...(isMobile && {
+                maxHeight: "calc(100vh - 220px)",
+                overflowY: "auto",
+                pb: 6,
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  marginRight: "3px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(245, 87, 108, 0.3)",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(245, 87, 108, 0.1)",
+                  "&:hover": {
+                    background: "rgba(245, 87, 108, 0.5)",
+                  },
+                },
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(245, 87, 108, 0.3) transparent",
+                pr: "2px",
+              }),
+            }}>
               <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
                 <Avatar
                   sx={{
@@ -2293,7 +2368,32 @@ export default function VisitorForm() {
 
           {/* Step 3: Purpose Selection */}
           {activeStep === 3 && (
-            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+            <Box sx={{ 
+              animation: `${fadeInUp} 0.5s ease-out`,
+              ...(isMobile && {
+                maxHeight: "calc(100vh - 220px)",
+                overflowY: "auto",
+                pb: 6,
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  marginRight: "3px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(102, 126, 234, 0.3)",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(102, 126, 234, 0.1)",
+                  "&:hover": {
+                    background: "rgba(102, 126, 234, 0.5)",
+                  },
+                },
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(102, 126, 234, 0.3) transparent",
+                pr: "2px",
+              }),
+            }}>
               <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
                 <Avatar
                   sx={{
@@ -2490,7 +2590,32 @@ export default function VisitorForm() {
 
           {/* Step 4: Dynamic Details Based on Purpose */}
           {activeStep === 4 && (
-            <Box sx={{ animation: `${fadeInUp} 0.5s ease-out` }}>
+            <Box sx={{ 
+              animation: `${fadeInUp} 0.5s ease-out`,
+              ...(isMobile && {
+                maxHeight: "calc(100vh - 220px)",
+                overflowY: "auto",
+                pb: 6,
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  marginRight: "3px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(33, 150, 243, 0.3)",
+                  borderRadius: "10px",
+                  border: "1px solid rgba(33, 150, 243, 0.1)",
+                  "&:hover": {
+                    background: "rgba(33, 150, 243, 0.5)",
+                  },
+                },
+                scrollbarWidth: "thin",
+                scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                pr: "2px",
+              }),
+            }}>
               <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
                 <Avatar
                   sx={{
