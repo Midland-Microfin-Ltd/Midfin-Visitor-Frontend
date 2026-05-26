@@ -195,7 +195,7 @@ export const submitVisitorSelfie = async (selfieFile) => {
 
 /**
  * Get dashboard data
- * @param {string} period - today, yesterday, last7days, last30days, thisMonth, lastMonth, thisYear
+ * @param {string} period 
  * @returns {Promise}
  */
 export const getDashboardData = async (period = 'today') => {

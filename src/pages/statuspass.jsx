@@ -41,10 +41,11 @@ import {
   Assignment as AssignmentIcon,
   Description as DescriptionIcon,
   Domain as DomainIcon,
+  Groups as GroupsIcon,
 } from "@mui/icons-material";
 import { keyframes } from "@emotion/react";
 import { getVisitorStatus } from "../utilities/apiUtils/apiHelper";
-import { determineHost, transformImageUrl } from "../utilities/commonutilities";
+import { determineHost } from "../utilities/commonutilities";
 
 // API Base URL
 const API_BASE_URL = determineHost();
@@ -87,7 +88,7 @@ const StatusPass = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [apiResponse, setApiResponse] = useState(null);
-  const [responseType, setResponseType] = useState(null); // 'pending', 'approved', 'rejected', 'notFound'
+  const [responseType, setResponseType] = useState(null);
   const [imageError, setImageError] = useState(false);
 
   const visitorId = searchParams.get("id");
@@ -703,7 +704,7 @@ const StatusPass = () => {
                   }
                 >
                   <Avatar
-                    src={!imageError && visitorData?.visitorSelfie ? transformImageUrl(visitorData.visitorSelfie) : undefined}
+                    src={!imageError && visitorData?.visitorSelfie ? visitorData.visitorSelfie : undefined}
                     imgProps={{
                       crossOrigin: "anonymous",
                       onError: () => setImageError(true)
@@ -926,6 +927,63 @@ const StatusPass = () => {
                 </Paper>
               </Slide>
 
+              {/* Number of Visitors */}
+              {visitorData?.numberOfVisitors && (
+                <Slide direction="right" in={!loading} timeout={850}>
+                  <Paper
+                    sx={{
+                      p: isMobile ? 1.5 : 2,
+                      background: "rgba(255, 255, 255, 0.05)",
+                      borderLeft: "4px solid #03a9f4",
+                      borderRadius: 2,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        background: "rgba(255, 255, 255, 0.08)",
+                        transform: "translateX(4px)",
+                      },
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={isMobile ? 1.5 : 2}
+                    >
+                      <Avatar
+                        sx={{
+                          bgcolor: "#03a9f420",
+                          color: "#03a9f4",
+                          width: isMobile ? 36 : 40,
+                          height: isMobile ? 36 : 40,
+                        }}
+                      >
+                        <GroupsIcon sx={{ fontSize: isMobile ? 18 : 20 }} />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "rgba(255, 255, 255, 0.6)",
+                            fontSize: isMobile ? "0.7rem" : "0.75rem",
+                          }}
+                        >
+                          Number of Visitors
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1rem",
+                          }}
+                        >
+                          {visitorData?.numberOfVisitors === 1 
+                            ? "1 (Self Visit)" 
+                            : visitorData?.numberOfVisitors}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Slide>
+              )}
               {/* Government ID - Show only if not null */}
               {visitorData?.governmentId && (
                 <Slide direction="right" in={!loading} timeout={900}>
