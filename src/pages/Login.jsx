@@ -19,7 +19,6 @@ import {
   Fade,
   Zoom,
   Chip,
-  Link,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -485,7 +484,7 @@ const Login = () => {
                               fontSize: { xs: "0.7rem", sm: "0.75rem" },
                             }}
                           >
-                            Scan QR or share link to register
+                            Scan QR to register
                           </Typography>
                         </Box>
                       )}
@@ -555,7 +554,7 @@ const Login = () => {
                               },
                             }}
                           >
-                            View & Share
+                            View QR
                           </Button>
                         )}
                       </Box>
@@ -853,87 +852,13 @@ const Login = () => {
             {generatedQRCode}
           </Typography>
 
-          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-            <Typography variant="body2" color="white" gutterBottom sx={{ fontSize: "0.85rem" }}>
-              Registration Link:
-            </Typography>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 1.5,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
-                borderColor: "rgba(255, 255, 255, 0.1)",
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  flex: 1,
-                  textAlign: "left",
-                  color: "rgba(255, 255, 255, 0.8)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  fontSize: "0.75rem",
-                }}
-              >
-                {getRegistrationLink(generatedQRCode)}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={handleCopyQRCode}
-                sx={{ color: "rgba(255, 255, 255, 0.7)", p: 0.5 }}
-              >
-                <CopyIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Paper>
-          </Box>
-
-          <Grid container spacing={1.5} sx={{ mt: 2 }}>
-            <Grid item xs={6}>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<CopyIcon />}
-                onClick={handleCopyQRCode}
-                size="small"
-                sx={{
-                  borderColor: "rgba(255, 255, 255, 0.3)",
-                  color: "white",
-                  fontSize: "0.85rem",
-                  py: 0.8,
-                  "&:hover": {
-                    borderColor: "#4CAF50",
-                  },
-                }}
-              >
-                Copy Link
-              </Button>
-            </Grid>
-            <Grid item xs={6}>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<ShareIcon />}
-                onClick={handleShareQRCode}
-                size="small"
-                sx={{
-                  borderColor: "rgba(255, 255, 255, 0.3)",
-                  color: "white",
-                  fontSize: "0.85rem",
-                  py: 0.8,
-                  "&:hover": {
-                    borderColor: "#1976d2",
-                  },
-                }}
-              >
-                Share
-              </Button>
-            </Grid>
-          </Grid>
+          <Typography 
+            variant="body2" 
+            color="rgba(255, 255, 255, 0.7)" 
+            sx={{ mt: 1, fontSize: "0.85rem" }}
+          >
+            Scan this QR code to register as a visitor
+          </Typography>
         </DialogContent>
 
         <DialogActions sx={{ p: 1.5, justifyContent: "center" }}>

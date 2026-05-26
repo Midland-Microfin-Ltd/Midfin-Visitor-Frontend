@@ -19,10 +19,10 @@ export const loginUser = async (credentials) => {
  * @param {Object} visitorData
  * @returns {Promise}
  */
-export const submitVisitorRequest = async (visitorData) => {
+export const submitVisitorRequest = async (visitorId, visitorData) => {
   try {
     const response = await apiClient.post(
-      '/api/v1/visitor/visitor-request',
+      `/api/v1/visitor/visitor-request/${visitorId}`, 
       visitorData
     );
     return response;
@@ -166,3 +166,95 @@ export const generateVisitorPass = async ({ visitorId }) => {
     throw error;
   }
 };
+
+/**
+ * Submit visitor selfie
+ * @param {File} selfieFile
+ * @returns {Promise}
+ */
+export const submitVisitorSelfie = async (selfieFile) => {
+  try {
+    const formData = new FormData();
+    formData.append('selfie', selfieFile);
+
+    const response = await apiClient.post(
+      '/api/v1/visitor/visitor-selfie',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Get dashboard data
+ * @param {string} period 
+ * @returns {Promise}
+ */
+export const getDashboardData = async (period = 'today') => {
+  try {
+    const response = await apiClient.get(
+      `/api/v1/dashboard?period=${period}`
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Get visitor status by ID
+ * @param {string} visitorId
+ * @returns {Promise}
+ */
+export const getVisitorStatus = async (visitorId) => {
+  try {
+    const response = await apiClient.get(
+      `/api/v1/visitor/visitor-pass/${visitorId}`
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+
+export const getOffice = async () => {
+  try {
+    const response = await apiClient.get(
+      '/api/v1/admin/office'
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Update visitor visit duration
+ * @param {string} visitorId - The visitor ID (format: MV123)
+ * @param {number} visitDuration - New visit duration in days
+ * @returns {Promise}
+ */
+export const updateVisitDuration = async (visitorId, visitDuration) => {
+  try {
+    const response = await apiClient.patch(
+      `/api/v1/visitor/update-visit-duration/${visitorId}`,
+      { visitDuration }
+    );
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * @returns {Promise}
+ */

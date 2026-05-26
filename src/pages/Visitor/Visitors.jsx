@@ -32,11 +32,12 @@ import {
   Phone as PhoneIcon,
   Check as CheckIcon,
   Close as CloseIcon,
+  EditCalendar as EditCalendarIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import MiniDrawer from "../../components/MiniDrawer";
 import { useThemeContext } from "../../context/ThemeContext";
-import { getVisitorRequests, takeVisitorAction,getBuildings } from "../../utilities/apiUtils/apiHelper"; 
+import { getVisitorRequests, takeVisitorAction, getBuildings, updateVisitDuration } from "../../utilities/apiUtils/apiHelper";
 
 const Visitors = () => {
   const { mode } = useThemeContext();
@@ -62,6 +63,15 @@ const Visitors = () => {
     actionType: "", 
     comment: "",
     guestHouseId: "",
+  });
+  
+  // State for update duration dialog
+  const [updateDurationDialog, setUpdateDurationDialog] = useState({
+    open: false,
+    visitorId: null,
+    visitorName: "",
+    currentDuration: 0,
+    newDuration: "",
   });
   
   const [guestHouses, setGuestHouses] = useState([]);
@@ -141,6 +151,59 @@ const Visitors = () => {
       comment: "",
       guestHouseId: "",
     });
+  };
+
+  // Open update duration dialog
+  const openUpdateDurationDialog = (visitorId, visitorName, currentDuration) => {
+    setUpdateDurationDialog({
+      open: true,
+      visitorId,
+      visitorName,
+      currentDuration,
+      newDuration: currentDuration.toString(),
+    });
+  };
+
+  // Close update duration dialog
+  const closeUpdateDurationDialog = () => {
+    setUpdateDurationDialog({
+      open: false,
+      visitorId: null,
+      visitorName: "",
+      currentDuration: 0,
+      newDuration: "",
+    });
+  };
+
+  // Handle update visit duration
+  const handleUpdateDuration = async () => {
+    const { visitorId, newDuration } = updateDurationDialog;
+    
+    if (!newDuration || newDuration.trim() === "") {
+      showSnackbar("Please enter visit duration", "error");
+      return;
+    }
+
+    const durationNumber = parseInt(newDuration);
+    if (isNaN(durationNumber) || durationNumber <= 0) {
+      showSnackbar("Please enter a valid duration (greater than 0)", "error");
+      return;
+    }
+
+    try {
+      const response = await updateVisitDuration(visitorId, durationNumber);
+      
+      if (response.success) {
+        showSnackbar("Visit duration updated successfully", "success");
+        closeUpdateDurationDialog();
+        fetchVisitors(page, rowsPerPage);
+      } else {
+        showSnackbar(response.message || "Failed to update visit duration", "error");
+      }
+    } catch (error) {
+      console.error("Error updating visit duration:", error);
+      showSnackbar("Error updating visit duration", "error");
+    }
   };
 
   // Handle approve/reject action
@@ -293,6 +356,13 @@ const Visitors = () => {
     const purposeOfVisit = visitor.purposeOfVisit || '';
     const personToMeet = visitor.personToMeet || '';
     const departmentToVisit = visitor.departmentToVisit || '';
+    const departmentOfVisit = visitor.departmentOfVisit || '';
+    const place = visitor.place || '';
+    const employeeCode = visitor.employeeCode || '';
+    const companyName = visitor.companyName || '';
+    const interviewType = visitor.interviewType || '';
+    const otherVisitPurpose = visitor.otherVisitPurpose || '';
+    const officeName = visitor.officeToVisit?.name || '';
 
     return (
       visitorName.toLowerCase().includes(searchLower) ||
@@ -301,7 +371,14 @@ const Visitors = () => {
       governmentId.toLowerCase().includes(searchLower) ||
       purposeOfVisit.toLowerCase().includes(searchLower) ||
       personToMeet.toLowerCase().includes(searchLower) ||
-      departmentToVisit.toLowerCase().includes(searchLower)
+      departmentToVisit.toLowerCase().includes(searchLower) ||
+      departmentOfVisit.toLowerCase().includes(searchLower) ||
+      place.toLowerCase().includes(searchLower) ||
+      employeeCode.toLowerCase().includes(searchLower) ||
+      companyName.toLowerCase().includes(searchLower) ||
+      interviewType.toLowerCase().includes(searchLower) ||
+      otherVisitPurpose.toLowerCase().includes(searchLower) ||
+      officeName.toLowerCase().includes(searchLower)
     );
   });
 
@@ -393,6 +470,11 @@ const Visitors = () => {
                           sx={{ display: "flex", alignItems: "center", gap: 2 }}
                         >
                           <Avatar
+                            src={visitor.visitorSelfie || undefined}
+                            alt={visitor.visitorName}
+                            imgProps={{
+                              crossOrigin: "anonymous"
+                            }}
                             sx={{
                               bgcolor: mode === "dark" ? "#4299E1" : "#3182CE",
                             }}
@@ -440,35 +522,101 @@ const Visitors = () => {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
-                          Purpose: {visitor.purposeOfVisit}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                        >
-                          Department: {visitor.departmentToVisit}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                        >
-                          Person: {visitor.personToMeet}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Duration: {visitor.visitDuration || 0} day(s)
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Office: {visitor.officeToVisit?.name || "N/A"}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Visit Type: {visitor.visitType}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Created: {formatDate(visitor.createdAt)} • {formatTime(visitor.createdAt)}
-                        </Typography>
+                        <Box>
+                          {/* Purpose */}
+                          {visitor.purposeOfVisit && (
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              Purpose: {visitor.purposeOfVisit}
+                            </Typography>
+                          )}
+                          
+                          {/* Address/Place */}
+                          {visitor.place && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Address: {visitor.place}
+                            </Typography>
+                          )}
+                          
+                          {/* Interview Type */}
+                          {visitor.interviewType && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Interview Type: {visitor.interviewType}
+                            </Typography>
+                          )}
+                          
+                          {/* Employee Code */}
+                          {visitor.employeeCode && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Employee Code: {visitor.employeeCode}
+                            </Typography>
+                          )}
+                          
+                          {/* Other Visit Purpose */}
+                          {visitor.otherVisitPurpose && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Other Purpose: {visitor.otherVisitPurpose}
+                            </Typography>
+                          )}
+                          
+                          {/* Company Name */}
+                          {visitor.companyName && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Company: {visitor.companyName}
+                            </Typography>
+                          )}
+                          
+                          {/* Meeting With Whom */}
+                          {visitor.meetingWithWhom && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Meeting With: {visitor.meetingWithWhom}
+                            </Typography>
+                          )}
+                          
+                          {/* Person to Meet */}
+                          {visitor.personToMeet && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Person: {visitor.personToMeet}
+                            </Typography>
+                          )}
+                          
+                          {/* Department - Show departmentOfVisit OR departmentToVisit */}
+                          {(visitor.departmentOfVisit || visitor.departmentToVisit) && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Department: {visitor.departmentOfVisit || visitor.departmentToVisit}
+                            </Typography>
+                          )}
+                          
+                          {/* Visit Days */}
+                          {visitor.visitDays && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Visit Days: {visitor.visitDays}
+                            </Typography>
+                          )}
+                          
+                          {/* Visit Duration */}
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Duration: {visitor.visitDuration || 0} day(s)
+                          </Typography>
+                          
+                          {/* Office to Visit */}
+                          {visitor.officeToVisit?.name && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Office: {visitor.officeToVisit.name}
+                            </Typography>
+                          )}
+                          
+                          {/* Visit Type */}
+                          {visitor.visitType && (
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Visit Type: {visitor.visitType}
+                            </Typography>
+                          )}
+                          
+                          {/* Created Date */}
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Created: {formatDate(visitor.createdAt)} • {formatTime(visitor.createdAt)}
+                          </Typography>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -484,6 +632,7 @@ const Visitors = () => {
                             display: "flex",
                             justifyContent: "flex-end",
                             gap: 1,
+                            flexWrap: "wrap",
                           }}
                         >
                           {visitor.status === "PENDING" && (
@@ -532,6 +681,35 @@ const Visitors = () => {
                               </Tooltip>
                             </>
                           )}
+                          {(visitor.status === "APPROVED" || visitor.status === "PENDING") && (
+                            <Tooltip title="Update Visit Duration">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                startIcon={<EditCalendarIcon />}
+                                onClick={() => openUpdateDurationDialog(
+                                  visitor.visitorId,
+                                  visitor.visitorName,
+                                  visitor.visitDuration || 0
+                                )}
+                                sx={{ 
+                                  minWidth: 'auto',
+                                  px: 1.5,
+                                  py: 0.5,
+                                  fontSize: '0.75rem',
+                                  borderColor: mode === "dark" ? "#4299E1" : "#3182CE",
+                                  color: mode === "dark" ? "#4299E1" : "#3182CE",
+                                  '&:hover': {
+                                    borderColor: mode === "dark" ? "#2b6cb0" : "#2c5282",
+                                    backgroundColor: mode === "dark" ? "rgba(66, 153, 225, 0.1)" : "rgba(49, 130, 206, 0.1)",
+                                  }
+                                }}
+                              >
+                                Duration
+                              </Button>
+                            </Tooltip>
+                          )}
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -552,6 +730,110 @@ const Visitors = () => {
           />
         </Paper>
       )}
+
+      {/* Update Duration Dialog */}
+      <Dialog 
+        open={updateDurationDialog.open} 
+        onClose={closeUpdateDurationDialog} 
+        maxWidth="xs" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "white",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <EditCalendarIcon />
+          Update Visit Duration
+        </DialogTitle>
+        <DialogContent sx={{ mt: 3 }}>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Visitor Name
+            </Typography>
+            <Typography variant="body1" fontWeight={600} sx={{ mb: 2 }}>
+              {updateDurationDialog.visitorName}
+            </Typography>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Current Duration
+            </Typography>
+            <Chip 
+              label={`${updateDurationDialog.currentDuration} day(s)`}
+              size="small"
+              sx={{ 
+                mb: 3,
+                fontWeight: 600,
+                bgcolor: mode === "dark" ? "rgba(66, 153, 225, 0.2)" : "rgba(49, 130, 206, 0.1)",
+                color: mode === "dark" ? "#4299E1" : "#3182CE",
+              }}
+            />
+          </Box>
+
+          <TextField
+            fullWidth
+            type="number"
+            label="New Visit Duration (days) *"
+            value={updateDurationDialog.newDuration}
+            onChange={(e) => setUpdateDurationDialog(prev => ({ 
+              ...prev, 
+              newDuration: e.target.value 
+            }))}
+            placeholder="Enter number of days"
+            InputProps={{
+              inputProps: { min: 1, max: 365 }
+            }}
+            helperText="Enter the new visit duration in days (1-365)"
+            required
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button 
+            onClick={closeUpdateDurationDialog} 
+            color="inherit"
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateDuration}
+            variant="contained"
+            disabled={!updateDurationDialog.newDuration || parseInt(updateDurationDialog.newDuration) <= 0}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              '&:hover': {
+                background: "linear-gradient(135deg, #5568d3 0%, #6b46c1 100%)",
+              },
+              '&:disabled': {
+                background: "rgba(0, 0, 0, 0.12)",
+              }
+            }}
+          >
+            Update Duration
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Action Dialog for Approve/Reject */}
       <Dialog open={actionDialog.open} onClose={closeActionDialog} maxWidth="sm" fullWidth>
