@@ -38,7 +38,6 @@ import { useNavigate } from "react-router-dom";
 import MiniDrawer from "../../components/MiniDrawer";
 import { useThemeContext } from "../../context/ThemeContext";
 import { getVisitorRequests, takeVisitorAction, getBuildings, updateVisitDuration } from "../../utilities/apiUtils/apiHelper";
-import { transformImageUrl } from "../../utilities/commonutilities";
 
 const Visitors = () => {
   const { mode } = useThemeContext();
@@ -471,7 +470,7 @@ const Visitors = () => {
                           sx={{ display: "flex", alignItems: "center", gap: 2 }}
                         >
                           <Avatar
-                            src={visitor.visitorSelfie ? transformImageUrl(visitor.visitorSelfie) : undefined}
+                            src={visitor.visitorSelfie || undefined}
                             alt={visitor.visitorName}
                             imgProps={{
                               crossOrigin: "anonymous"

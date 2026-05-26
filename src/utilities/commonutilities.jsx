@@ -9,18 +9,6 @@ export const determineHost = () => {
   }
 };
 
-export const transformImageUrl = (imageUrl) => {
-  if (!imageUrl || typeof imageUrl !== 'string') return imageUrl;
-  
-  // If the image URL contains localhost:5678, replace it with the production host
-  if (imageUrl.includes('localhost:5678')) {
-    const productionHost = determineHost();
-    return imageUrl.replace('http://localhost:5678', productionHost);
-  }
-  
-  return imageUrl;
-};
-
 export const networkError = { 
   errorCode: "networkError", 
   errorDescription: "Please check your internet connection!" 

@@ -60,6 +60,7 @@ import {
   Close as CloseIcon,
   HourglassEmpty as HourglassEmptyIcon,
   PendingActions as PendingActionsIcon,
+  Groups as GroupsIcon,
 } from "@mui/icons-material";
 import {
   sendOtp,
@@ -146,6 +147,7 @@ const OTHER_VISIT_PURPOSES = [
   "Training",
   "Induction",
   "Joining",
+  "Scheduled Interview",
   "Other",
 ];
 
@@ -189,6 +191,9 @@ const INITIAL_FORM_DATA = {
   officeToVisit: "",
   photo: null,
   photoPreview: null,
+  // Visitor count
+  visitorCountType: "self",
+  numberOfVisitors: "1",
   // Meeting specific
   place: "",
   meetingWith: "",
@@ -763,6 +768,12 @@ export default function VisitorForm() {
   const canProceedToReview = () => {
     if (!selectedPurpose) return false;
     
+    // Validate visitor count (common for all)
+    const visitorCountValid = formData.visitorCountType === "self" || 
+      (formData.visitorCountType === "multiple" && formData.numberOfVisitors && parseInt(formData.numberOfVisitors) > 0);
+    
+    if (!visitorCountValid) return false;
+    
     switch (selectedPurpose.id) {
       case "meeting":
         return formData.fullName && formData.place && formData.department && 
@@ -1071,6 +1082,7 @@ export default function VisitorForm() {
       governmentId: formData.governmentId,
       officeId: formData.officeToVisit,
       registerdBy: "self",
+      numberOfVisitors: parseInt(formData.numberOfVisitors) || 1,
     };
 
     // Add purpose-specific fields
@@ -2706,10 +2718,10 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Place"
+                      label="Your Address"
                       value={formData.place}
                       onChange={handleChange("place")}
-                      placeholder="Enter location/place"
+                      placeholder="Enter your address"
                       autoComplete="off"
                       InputProps={{
                         startAdornment: (
@@ -2854,6 +2866,117 @@ export default function VisitorForm() {
                       }}
                     />
 
+                    {/* Visitor Count Section - Common for all purposes */}
+                    <Box sx={{ mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.9)",
+                          mb: 1.5,
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        Number of Visitors
+                      </Typography>
+                      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "self"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <PersonIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                          </Box>
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "multiple"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <GroupsIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                          </Box>
+                        </Button>
+                      </Box>
+                      {formData.visitorCountType === "multiple" && (
+                        <Fade in={formData.visitorCountType === "multiple"}>
+                          <TextField
+                            fullWidth
+                            required
+                            label="Number of Visitors"
+                            value={formData.numberOfVisitors}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, "");
+                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
+                                setFormData({ ...formData, numberOfVisitors: value });
+                              }
+                            }}
+                            placeholder="Enter total number of visitors (1-50)"
+                            type="number"
+                            autoComplete="off"
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                </InputAdornment>
+                              ),
+                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                color: "white",
+                                borderRadius: 3,
+                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                                "&.Mui-focused fieldset": { 
+                                  borderColor: selectedPurpose.color,
+                                  boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                                },
+                              },
+                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                            }}
+                          />
+                        </Fade>
+                      )}
+                    </Box>
+
                     <TextField
                       fullWidth
                       required
@@ -2926,10 +3049,10 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Place"
+                      label="Your Address"
                       value={formData.place}
                       onChange={handleChange("place")}
-                      placeholder="Enter location/place"
+                      placeholder="Enter your address"
                       autoComplete="off"
                       InputProps={{
                         startAdornment: (
@@ -3097,6 +3220,117 @@ export default function VisitorForm() {
                       }}
                     />
 
+                    {/* Visitor Count Section - Common for all purposes */}
+                    <Box sx={{ mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.9)",
+                          mb: 1.5,
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        Number of Visitors
+                      </Typography>
+                      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "self"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <PersonIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                          </Box>
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "multiple"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <GroupsIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                          </Box>
+                        </Button>
+                      </Box>
+                      {formData.visitorCountType === "multiple" && (
+                        <Fade in={formData.visitorCountType === "multiple"}>
+                          <TextField
+                            fullWidth
+                            required
+                            label="Number of Visitors"
+                            value={formData.numberOfVisitors}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, "");
+                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
+                                setFormData({ ...formData, numberOfVisitors: value });
+                              }
+                            }}
+                            placeholder="Enter total number of visitors (1-50)"
+                            type="number"
+                            autoComplete="off"
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                </InputAdornment>
+                              ),
+                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                color: "white",
+                                borderRadius: 3,
+                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                                "&.Mui-focused fieldset": { 
+                                  borderColor: selectedPurpose.color,
+                                  boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                                },
+                              },
+                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                            }}
+                          />
+                        </Fade>
+                      )}
+                    </Box>
+
                     <TextField
                       fullWidth
                       required
@@ -3201,10 +3435,10 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Place"
+                      label="Your Address"
                       value={formData.place}
                       onChange={handleChange("place")}
-                      placeholder="Enter location/place"
+                      placeholder="Enter your address"
                       autoComplete="off"
                       InputProps={{
                         startAdornment: (
@@ -3318,6 +3552,117 @@ export default function VisitorForm() {
                       }}
                     />
 
+                    {/* Visitor Count Section - Common for all purposes */}
+                    <Box sx={{ mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.9)",
+                          mb: 1.5,
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        Number of Visitors
+                      </Typography>
+                      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "self"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <PersonIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                          </Box>
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "multiple"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <GroupsIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                          </Box>
+                        </Button>
+                      </Box>
+                      {formData.visitorCountType === "multiple" && (
+                        <Fade in={formData.visitorCountType === "multiple"}>
+                          <TextField
+                            fullWidth
+                            required
+                            label="Number of Visitors"
+                            value={formData.numberOfVisitors}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, "");
+                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
+                                setFormData({ ...formData, numberOfVisitors: value });
+                              }
+                            }}
+                            placeholder="Enter total number of visitors (1-50)"
+                            type="number"
+                            autoComplete="off"
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                </InputAdornment>
+                              ),
+                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                color: "white",
+                                borderRadius: 3,
+                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                                "&.Mui-focused fieldset": { 
+                                  borderColor: selectedPurpose.color,
+                                  boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                                },
+                              },
+                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                            }}
+                          />
+                        </Fade>
+                      )}
+                    </Box>
+
                     <TextField
                       fullWidth
                       required
@@ -3390,10 +3735,10 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Place"
+                      label="Your Address"
                       value={formData.place}
                       onChange={handleChange("place")}
-                      placeholder="Enter location/place"
+                      placeholder="Enter your address"
                       autoComplete="off"
                       InputProps={{
                         startAdornment: (
@@ -3560,6 +3905,117 @@ export default function VisitorForm() {
                         ))}
                       </Select>
                     </FormControl>
+
+                    {/* Visitor Count Section - Common for all purposes */}
+                    <Box sx={{ mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "rgba(255, 255, 255, 0.9)",
+                          mb: 1.5,
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        Number of Visitors
+                      </Typography>
+                      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "self"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <PersonIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                          </Box>
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
+                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
+                            background: formData.visitorCountType === "multiple"
+                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                              : "rgba(255, 255, 255, 0.05)",
+                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            "&:hover": {
+                              borderColor: selectedPurpose.color,
+                              background: formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                : "rgba(255, 255, 255, 0.08)",
+                            },
+                          }}
+                        >
+                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                            <GroupsIcon sx={{ fontSize: 28 }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                          </Box>
+                        </Button>
+                      </Box>
+                      {formData.visitorCountType === "multiple" && (
+                        <Fade in={formData.visitorCountType === "multiple"}>
+                          <TextField
+                            fullWidth
+                            required
+                            label="Number of Visitors"
+                            value={formData.numberOfVisitors}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\D/g, "");
+                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
+                                setFormData({ ...formData, numberOfVisitors: value });
+                              }
+                            }}
+                            placeholder="Enter total number of visitors (1-50)"
+                            type="number"
+                            autoComplete="off"
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                </InputAdornment>
+                              ),
+                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                            }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                                color: "white",
+                                borderRadius: 3,
+                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
+                                "&.Mui-focused fieldset": { 
+                                  borderColor: selectedPurpose.color,
+                                  boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
+                                },
+                              },
+                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                            }}
+                          />
+                        </Fade>
+                      )}
+                    </Box>
 
                     <TextField
                       fullWidth
@@ -3942,6 +4398,15 @@ export default function VisitorForm() {
                     />
                   </>
                 )}
+
+                {/* Visitor Count - Common for all purposes */}
+                <ReviewItemMobile
+                  label="Number of Visitors"
+                  value={formData.visitorCountType === "self" ? "Just Me (1)" : `${formData.numberOfVisitors} visitors`}
+                  icon={<GroupsIcon />}
+                  onEdit={() => handleEdit(4)}
+                  color={selectedPurpose?.color || "#2196f3"}
+                />
 
                 <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                   <Button
