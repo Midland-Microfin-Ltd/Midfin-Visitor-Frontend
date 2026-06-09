@@ -61,6 +61,7 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
   PendingActions as PendingActionsIcon,
   Groups as GroupsIcon,
+  HowToReg as HowToRegIcon,
 } from "@mui/icons-material";
 import {
   sendOtp,
@@ -128,7 +129,12 @@ const slideIn = keyframes`
 const PURPOSES = [
   { id: "meeting", label: "Meeting", icon: "🤝", color: "#9c27b0" },
   { id: "interview", label: "Interview", icon: "👔", color: "#4caf50" },
-  { id: "employee-visit", label: "Employee Visit", icon: "👤", color: "#2196f3" },
+  {
+    id: "employee-visit",
+    label: "Employee Visit",
+    icon: "👤",
+    color: "#2196f3",
+  },
   { id: "other-visit", label: "Other Visit", icon: "📋", color: "#ff9800" },
 ];
 
@@ -165,7 +171,6 @@ const STEPS = [
   "Review",
 ];
 
-// Mobile-optimized step labels
 const MOBILE_STEPS = [
   { label: "Verify", icon: <PhoneIcon /> },
   { label: "Photo", icon: <CameraAltIcon /> },
@@ -482,7 +487,12 @@ const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
 };
 
 // Mobile Bottom Navigation
-const MobileStepNavigation = ({ activeStep, onStepChange, isMobile, completedSteps }) => {
+const MobileStepNavigation = ({
+  activeStep,
+  onStepChange,
+  isMobile,
+  completedSteps,
+}) => {
   if (!isMobile) return null;
 
   return (
@@ -534,8 +544,10 @@ const MobileStepNavigation = ({ activeStep, onStepChange, isMobile, completedSte
               flexDirection: "column",
               alignItems: "center",
               gap: 0.5,
-              opacity: completedSteps.has(index) 
-                ? (index === activeStep ? 1 : 0.6)
+              opacity: completedSteps.has(index)
+                ? index === activeStep
+                  ? 1
+                  : 0.6
                 : 0.3,
               transition: "all 0.3s ease",
               transform: index === activeStep ? "translateY(-5px)" : "none",
@@ -621,9 +633,9 @@ const ReviewItemMobile = ({
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Typography
         variant="caption"
-        sx={{ 
-          color: "rgba(255, 255, 255, 0.6)", 
-          display: "block", 
+        sx={{
+          color: "rgba(255, 255, 255, 0.6)",
+          display: "block",
           mb: 0.5,
           WebkitTextFillColor: "rgba(255, 255, 255, 0.6)",
         }}
@@ -631,9 +643,9 @@ const ReviewItemMobile = ({
         {label}
       </Typography>
       <Typography
-        sx={{ 
-          color: "white", 
-          fontWeight: 500, 
+        sx={{
+          color: "white",
+          fontWeight: 500,
           mb: subValue ? 0.5 : 0,
           WebkitTextFillColor: "white",
         }}
@@ -725,9 +737,12 @@ const extractApiErrorMessage = (error) => {
 // Helper function to get base URL for QR code
 const getBaseUrl = () => {
   const hostEnvironment = import.meta.env.VITE_ENVIRONMENT;
-  
+
   // If running on localhost, use localhost URL
-  if (hostEnvironment === "development" && window.location.hostname === "localhost") {
+  if (
+    hostEnvironment === "development" &&
+    window.location.hostname === "localhost"
+  ) {
     return `${window.location.origin}${window.location.pathname}`;
   } else {
     // Use production dashboard domain
@@ -738,7 +753,9 @@ const getBaseUrl = () => {
 // Main VisitorForm Component
 export default function VisitorForm() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  // Treat phones AND portrait tablets (< 900px) as "mobile" so they get the
+  // clean single-column layout; the two-panel desktop UI only applies at md+.
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState(new Set([0])); // Track which steps user can navigate to
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -763,30 +780,57 @@ export default function VisitorForm() {
 
   // Derived values
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
-  
+
   // Dynamic validation based on purpose
   const canProceedToReview = () => {
     if (!selectedPurpose) return false;
-    
+
     // Validate visitor count (common for all)
-    const visitorCountValid = formData.visitorCountType === "self" || 
-      (formData.visitorCountType === "multiple" && formData.numberOfVisitors && parseInt(formData.numberOfVisitors) > 0);
-    
+    const visitorCountValid =
+      formData.visitorCountType === "self" ||
+      (formData.visitorCountType === "multiple" &&
+        formData.numberOfVisitors &&
+        parseInt(formData.numberOfVisitors) > 0);
+
     if (!visitorCountValid) return false;
-    
+
     switch (selectedPurpose.id) {
       case "meeting":
-        return formData.fullName && formData.place && formData.department && 
-               formData.meetingWith && formData.company && formData.governmentId;
+        return (
+          formData.fullName &&
+          formData.place &&
+          formData.department &&
+          formData.meetingWith &&
+          formData.company &&
+          formData.governmentId.length === 12
+        );
       case "interview":
-        return formData.fullName && formData.place && formData.interviewType &&
-               formData.department && formData.personToMeet && formData.governmentId;
+        return (
+          formData.fullName &&
+          formData.place &&
+          formData.interviewType &&
+          formData.department &&
+          formData.personToMeet &&
+          formData.governmentId.length === 12
+        );
       case "employee-visit":
-        return formData.employeeCode && formData.employeeName && formData.place &&
-               formData.yourDepartment && formData.visitDays && formData.governmentId;
+        return (
+          formData.employeeCode &&
+          formData.employeeName &&
+          formData.place &&
+          formData.yourDepartment &&
+          formData.visitDays &&
+          formData.governmentId.length === 12
+        );
       case "other-visit":
-        return formData.fullName && formData.place && formData.personToMeet &&
-               formData.department && formData.otherVisitPurpose && formData.governmentId;
+        return (
+          formData.fullName &&
+          formData.place &&
+          formData.personToMeet &&
+          formData.department &&
+          formData.otherVisitPurpose &&
+          formData.governmentId.length === 12
+        );
       default:
         return false;
     }
@@ -800,10 +844,10 @@ export default function VisitorForm() {
 
   // Download QR Code as image
   const downloadQRCode = () => {
-    const canvas = qrCodeRef.current?.querySelector('canvas');
+    const canvas = qrCodeRef.current?.querySelector("canvas");
     if (canvas) {
-      const url = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
+      const url = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
       link.href = url;
       link.download = `visitor-qr-${generatedVisitorId}.png`;
       document.body.appendChild(link);
@@ -814,7 +858,12 @@ export default function VisitorForm() {
 
   // Auto-advance to step 1 when both verification and terms are completed
   useEffect(() => {
-    if (activeStep === 0 && formData.verified && formData.termsAccepted && !completedSteps.has(1)) {
+    if (
+      activeStep === 0 &&
+      formData.verified &&
+      formData.termsAccepted &&
+      !completedSteps.has(1)
+    ) {
       setTimeout(() => advanceToNextStep(1), 300);
     }
   }, [formData.verified, formData.termsAccepted, activeStep]);
@@ -826,7 +875,7 @@ export default function VisitorForm() {
         setIsLoadingOffices(true);
         try {
           const response = await getOffice();
-          
+
           if (response.data && Array.isArray(response.data)) {
             setOffices(response.data);
           }
@@ -1031,7 +1080,6 @@ export default function VisitorForm() {
       return;
     }
 
- 
     advanceToNextStep(2);
   };
 
@@ -1043,11 +1091,12 @@ export default function VisitorForm() {
   };
 
   const handleChange = (field) => (e) => {
-    const value =
-      field === "governmentId" ? e.target.value.toUpperCase() : e.target.value;
+    let value = e.target.value;
+    if (field === "governmentId") {
+      value = value.replace(/\D/g, "").slice(0, 12);
+    }
     setFormData({ ...formData, [field]: value });
   };
-
 
   const handleEdit = (step) => {
     handleStepChange(step);
@@ -1106,7 +1155,9 @@ export default function VisitorForm() {
         firstName: formData.fullName.split(" ")[0] || formData.fullName,
         lastName: formData.fullName.split(" ").slice(1).join(" ") || "",
         place: formData.place,
-        interviewType: INTERVIEW_TYPES.find(t => t.id === formData.interviewType)?.label || formData.interviewType,
+        interviewType:
+          INTERVIEW_TYPES.find((t) => t.id === formData.interviewType)?.label ||
+          formData.interviewType,
         departmentOfVisit: formData.department,
         personToMeet: formData.personToMeet,
       };
@@ -1141,16 +1192,13 @@ export default function VisitorForm() {
         throw new Error("Failed to get visitor ID from photo upload");
       }
 
-      const response = await submitVisitorRequest(
-        visitorId,
-        visitorData,
-      );
+      const response = await submitVisitorRequest(visitorId, visitorData);
 
       if (response?.success || response?.data?.success) {
         setGeneratedVisitorId(visitorId);
         setSubmissionSuccess(true);
         setIsSubmitted(true);
-        
+
         // Auto-download QR code after a short delay
         setTimeout(() => {
           downloadQRCode();
@@ -1352,7 +1400,7 @@ export default function VisitorForm() {
                   includeMargin={true}
                 />
               </Box>
-              
+
               {/* Hidden canvas for download */}
               <Box ref={qrCodeRef} sx={{ display: "none" }}>
                 <QRCodeCanvas
@@ -1375,7 +1423,7 @@ export default function VisitorForm() {
               >
                 {generatedVisitorId}
               </Typography>
-              
+
               <Typography
                 variant="caption"
                 sx={{
@@ -1453,17 +1501,205 @@ export default function VisitorForm() {
       <Card
         sx={{
           width: "100%",
-          maxWidth: isMobile ? "100%" : 500,
+          maxWidth: isMobile ? "100%" : { sm: 560, md: 1040 },
           minHeight: isMobile ? "100vh" : "auto",
+          maxHeight: isMobile ? "none" : "92vh",
           background: "rgba(255, 255, 255, 0.05)",
           backdropFilter: "blur(20px)",
           border: isMobile ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
           borderRadius: isMobile ? 0 : 4,
           boxShadow: isMobile ? "none" : "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: { xs: "column", md: "row" },
+          overflow: "hidden",
         }}
       >
+        {/* Desktop Side Panel (branding + vertical stepper) */}
+        {!isMobile && (
+          <Box
+            sx={{
+              display: { xs: "none", md: "flex" },
+              flexDirection: "column",
+              width: 360,
+              flexShrink: 0,
+              position: "relative",
+              p: 4,
+              background:
+                "linear-gradient(160deg, rgba(33,150,243,0.18) 0%, rgba(13,71,161,0.28) 50%, rgba(10,25,41,0.35) 100%)",
+              borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Decorative glow */}
+            <Box
+              sx={{
+                position: "absolute",
+                top: -80,
+                right: -80,
+                width: 240,
+                height: 240,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle, rgba(33,150,243,0.35) 0%, transparent 70%)",
+                filter: "blur(10px)",
+                animation: `${float} 8s ease-in-out infinite`,
+              }}
+            />
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: -60,
+                left: -60,
+                width: 200,
+                height: 200,
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(circle, rgba(100,181,246,0.25) 0%, transparent 70%)",
+                filter: "blur(10px)",
+                animation: `${float} 10s ease-in-out infinite reverse`,
+              }}
+            />
+
+            {/* Brand */}
+            <Box sx={{ position: "relative", zIndex: 1, mb: 5 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  mb: 3,
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 52,
+                    height: 52,
+                    background:
+                      "linear-gradient(135deg, #2196f3 0%, #1976d2 100%)",
+                    boxShadow: "0 8px 24px rgba(33, 150, 243, 0.45)",
+                  }}
+                >
+                  <HowToRegIcon sx={{ fontSize: 28 }} />
+                </Avatar>
+                <Box>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: "white",
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                      background:
+                        "linear-gradient(135deg, #fff 0%, #90caf9 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                    }}
+                  >
+                    Visitor
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: "white",
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                      background:
+                        "linear-gradient(135deg, #fff 0%, #90caf9 100%)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                    }}
+                  >
+                    Registration
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "rgba(255, 255, 255, 0.65)",
+                  lineHeight: 1.6,
+                  maxWidth: 260,
+                }}
+              >
+                Welcome! Complete these quick steps to register your visit. It
+                only takes a minute.
+              </Typography>
+            </Box>
+
+            {/* Vertical Stepper */}
+            <Stepper
+              activeStep={activeStep}
+              orientation="vertical"
+              sx={{
+                position: "relative",
+                zIndex: 1,
+                "& .MuiStepConnector-line": {
+                  borderColor: "rgba(255, 255, 255, 0.15)",
+                  minHeight: 18,
+                },
+                "& .Mui-completed .MuiStepConnector-line": {
+                  borderColor: "#4caf50",
+                },
+                "& .Mui-active .MuiStepConnector-line": {
+                  borderColor: "#2196f3",
+                },
+              }}
+            >
+              {STEPS.map((label, index) => (
+                <Step key={label}>
+                  <StepLabel
+                    onClick={() => handleStepChange(index)}
+                    sx={{
+                      cursor: completedSteps.has(index)
+                        ? "pointer"
+                        : "not-allowed",
+                      py: 0.5,
+                      "& .MuiStepIcon-root": {
+                        color: "rgba(255, 255, 255, 0.15)",
+                        fontSize: 28,
+                        "&.Mui-active": { color: "#2196f3" },
+                        "&.Mui-completed": { color: "#4caf50" },
+                      },
+                      "& .MuiStepLabel-label": {
+                        color: "rgba(255, 255, 255, 0.6)",
+                        fontSize: "0.95rem",
+                        fontWeight: 500,
+                        "&.Mui-active": {
+                          color: "#fff",
+                          fontWeight: 700,
+                        },
+                        "&.Mui-completed": {
+                          color: "rgba(255, 255, 255, 0.85)",
+                        },
+                      },
+                      "&:hover .MuiStepLabel-label": completedSteps.has(index)
+                        ? { color: "#64b5f6" }
+                        : {},
+                    }}
+                  >
+                    {label}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+
+            {/* Footer hint */}
+            <Box
+              sx={{
+                mt: "auto",
+                pt: 4,
+                position: "relative",
+                zIndex: 1,
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{ color: "rgba(255, 255, 255, 0.4)" }}
+              >
+                Step {activeStep + 1} of {STEPS.length}
+              </Typography>
+            </Box>
+          </Box>
+        )}
         {/* Mobile Header */}
         {isMobile && (
           <Paper
@@ -1529,23 +1765,51 @@ export default function VisitorForm() {
           </Paper>
         )}
 
-        <CardContent
+        <Box
           sx={{
-            p: isMobile ? 2 : 4,
             flex: 1,
-            pb: isMobile ? 10 : 4,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            ...(!isMobile && { maxHeight: "92vh" }),
           }}
         >
+        <CardContent
+          sx={{
+            p: isMobile ? 2 : { sm: 4, md: 5 },
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            pb: isMobile ? 10 : { sm: 4, md: 5 },
+            display: "flex",
+            flexDirection: "column",
+            ...(!isMobile && {
+              overflowY: "auto",
+              "&::-webkit-scrollbar": { width: "8px" },
+              "&::-webkit-scrollbar-track": { background: "transparent" },
+              "&::-webkit-scrollbar-thumb": {
+                background: "rgba(33, 150, 243, 0.3)",
+                borderRadius: "10px",
+              },
+              "&::-webkit-scrollbar-thumb:hover": {
+                background: "rgba(33, 150, 243, 0.5)",
+              },
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+            }),
+          }}
+        >
+          {/* Compact desktop header (only for sm; md uses the side panel) */}
           {!isMobile && (
-            <>
+            <Box sx={{ display: { sm: "block", md: "none" }, mb: 4 }}>
               <Typography
                 variant="h4"
                 sx={{
                   textAlign: "center",
                   color: "white",
                   fontWeight: 700,
-                  mb: 1,
-                  fontSize: { xs: "1.5rem", sm: "2rem" },
+                  mb: 3,
+                  fontSize: "2rem",
                   background:
                     "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
                   WebkitBackgroundClip: "text",
@@ -1554,70 +1818,44 @@ export default function VisitorForm() {
               >
                 Visitor Registration
               </Typography>
-              <Typography
-                variant="body2"
+              <Stepper
+                activeStep={activeStep}
+                alternativeLabel
                 sx={{
-                  textAlign: "center",
-                  color: "rgba(255, 255, 255, 0.6)",
-                  mb: 4,
-                  fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                  "& .MuiStepLabel-root .Mui-completed": { color: "#4caf50" },
+                  "& .MuiStepLabel-root .Mui-active": { color: "#2196f3" },
+                  "& .MuiStepLabel-root .MuiStepLabel-alternativeLabel": {
+                    color: "rgba(255, 255, 255, 0.5)",
+                    marginTop: "8px",
+                  },
                 }}
               >
-                Welcome! Please complete the registration process
-              </Typography>
-
-              {/* Desktop Stepper */}
-              <Box sx={{ mb: 4 }}>
-                <Stepper
-                  activeStep={activeStep}
-                  alternativeLabel
-                  sx={{
-                    "& .MuiStepLabel-root .Mui-completed": {
-                      color: "#4caf50",
-                    },
-                    "& .MuiStepLabel-root .Mui-active": {
-                      color: "#2196f3",
-                    },
-                    "& .MuiStepLabel-root .MuiStepLabel-alternativeLabel": {
-                      color: "rgba(255, 255, 255, 0.5)",
-                      marginTop: "8px",
-                    },
-                  }}
-                >
-                  {STEPS.map((label, index) => (
-                    <Step key={label}>
-                      <StepLabel
-                        onClick={() => handleStepChange(index)}
-                        sx={{
-                          cursor: completedSteps.has(index) ? "pointer" : "not-allowed",
-                          opacity: completedSteps.has(index) ? 1 : 0.5,
-                          "& .MuiStepLabel-label": {
-                            color: "rgba(255, 255, 255, 0.7)",
-                            fontSize: "0.8rem",
-                            "&.Mui-active": {
-                              color: "#2196f3",
-                              fontWeight: 600,
-                            },
-                            "&.Mui-completed": {
-                              color: "#4caf50",
-                            },
+                {STEPS.map((label, index) => (
+                  <Step key={label}>
+                    <StepLabel
+                      onClick={() => handleStepChange(index)}
+                      sx={{
+                        cursor: completedSteps.has(index)
+                          ? "pointer"
+                          : "not-allowed",
+                        opacity: completedSteps.has(index) ? 1 : 0.5,
+                        "& .MuiStepLabel-label": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                          fontSize: "0.8rem",
+                          "&.Mui-active": {
+                            color: "#2196f3",
+                            fontWeight: 600,
                           },
-                          "&:hover": completedSteps.has(index)
-                            ? {
-                                "& .MuiStepLabel-label": {
-                                  color: "#2196f3",
-                                },
-                              }
-                            : {},
-                        }}
-                      >
-                        {label}
-                      </StepLabel>
-                    </Step>
-                  ))}
-                </Stepper>
-              </Box>
-            </>
+                          "&.Mui-completed": { color: "#4caf50" },
+                        },
+                      }}
+                    >
+                      {label}
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+            </Box>
           )}
 
           {/* Error Message */}
@@ -1643,33 +1881,35 @@ export default function VisitorForm() {
 
           {/* Step 0: Phone Verification */}
           {activeStep === 0 && (
-            <Box sx={{ 
-              animation: `${fadeInUp} 0.5s ease-out`,
-              ...(isMobile && {
-                maxHeight: "calc(100vh - 220px)",
-                overflowY: "auto",
-                pb: 6,
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  marginRight: "3px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(33, 150, 243, 0.3)",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(33, 150, 243, 0.1)",
-                  "&:hover": {
-                    background: "rgba(33, 150, 243, 0.5)",
+            <Box
+              sx={{
+                animation: `${fadeInUp} 0.5s ease-out`,
+                ...(isMobile && {
+                  maxHeight: "calc(100vh - 220px)",
+                  overflowY: "auto",
+                  pb: 6,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
                   },
-                },
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
-                pr: "2px",
-              }),
-            }}>
-              <Box sx={{ textAlign: "center", mb: 3 }}>
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                    marginRight: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(33, 150, 243, 0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(33, 150, 243, 0.1)",
+                    "&:hover": {
+                      background: "rgba(33, 150, 243, 0.5)",
+                    },
+                  },
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                  pr: "2px",
+                }),
+              }}
+            >
+              <Box sx={{ textAlign: "center", mb: 3, pt: { xs: 2, sm: 2.5 } }}>
                 <Avatar
                   sx={{
                     width: isMobile ? 80 : 100,
@@ -1806,7 +2046,7 @@ export default function VisitorForm() {
                         onChange={handleOtpChange}
                         placeholder="4 digit code"
                         autoComplete="off"
-                        inputProps={{ 
+                        inputProps={{
                           maxLength: 4,
                           style: { color: "white" },
                           autoComplete: "off",
@@ -1996,32 +2236,34 @@ export default function VisitorForm() {
 
           {/* Step 1: Photo Upload */}
           {activeStep === 1 && (
-            <Box sx={{ 
-              animation: `${fadeInUp} 0.5s ease-out`,
-              ...(isMobile && {
-                maxHeight: "calc(100vh - 220px)",
-                overflowY: "auto",
-                pb: 6,
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  marginRight: "3px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(33, 150, 243, 0.3)",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(33, 150, 243, 0.1)",
-                  "&:hover": {
-                    background: "rgba(33, 150, 243, 0.5)",
+            <Box
+              sx={{
+                animation: `${fadeInUp} 0.5s ease-out`,
+                ...(isMobile && {
+                  maxHeight: "calc(100vh - 220px)",
+                  overflowY: "auto",
+                  pb: 6,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
                   },
-                },
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
-                pr: "2px",
-              }),
-            }}>
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                    marginRight: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(33, 150, 243, 0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(33, 150, 243, 0.1)",
+                    "&:hover": {
+                      background: "rgba(33, 150, 243, 0.5)",
+                    },
+                  },
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                  pr: "2px",
+                }),
+              }}
+            >
               {showCamera ? (
                 <CameraComponent
                   onCapture={handleCapturePhoto}
@@ -2030,7 +2272,7 @@ export default function VisitorForm() {
                 />
               ) : (
                 <>
-                  <Box sx={{ textAlign: "center", mb: 3 }}>
+                  <Box sx={{ textAlign: "center", mb: 3, pt: { xs: 2, sm: 2.5 } }}>
                     <Avatar
                       sx={{
                         width: isMobile ? 60 : 80,
@@ -2228,33 +2470,35 @@ export default function VisitorForm() {
 
           {/* Step 2: Office Selection */}
           {activeStep === 2 && (
-            <Box sx={{ 
-              animation: `${fadeInUp} 0.5s ease-out`,
-              ...(isMobile && {
-                maxHeight: "calc(100vh - 220px)",
-                overflowY: "auto",
-                pb: 6,
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  marginRight: "3px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(245, 87, 108, 0.3)",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(245, 87, 108, 0.1)",
-                  "&:hover": {
-                    background: "rgba(245, 87, 108, 0.5)",
+            <Box
+              sx={{
+                animation: `${fadeInUp} 0.5s ease-out`,
+                ...(isMobile && {
+                  maxHeight: "calc(100vh - 220px)",
+                  overflowY: "auto",
+                  pb: 6,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
                   },
-                },
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgba(245, 87, 108, 0.3) transparent",
-                pr: "2px",
-              }),
-            }}>
-              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                    marginRight: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(245, 87, 108, 0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(245, 87, 108, 0.1)",
+                    "&:hover": {
+                      background: "rgba(245, 87, 108, 0.5)",
+                    },
+                  },
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(245, 87, 108, 0.3) transparent",
+                  pr: "2px",
+                }),
+              }}
+            >
+              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 }, pt: { xs: 2, sm: 2.5 } }}>
                 <Avatar
                   sx={{
                     width: { xs: 60, sm: 80, md: 100 },
@@ -2276,7 +2520,8 @@ export default function VisitorForm() {
                     fontWeight: 700,
                     mb: { xs: 0.5, sm: 1 },
                     fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" },
-                    background: "linear-gradient(135deg, #fff 0%, #ffe0e7 100%)",
+                    background:
+                      "linear-gradient(135deg, #fff 0%, #ffe0e7 100%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
@@ -2338,12 +2583,15 @@ export default function VisitorForm() {
                       "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                         borderColor: "#f5576c",
                       },
-                      "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                      "& .MuiSelect-icon": {
+                        color: "rgba(255, 255, 255, 0.7)",
+                      },
                     }}
                     MenuProps={{
                       PaperProps: {
                         sx: {
-                          background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                          background:
+                            "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                           backdropFilter: "blur(20px)",
                           border: "1px solid rgba(255, 255, 255, 0.1)",
                           borderRadius: "12px",
@@ -2352,7 +2600,7 @@ export default function VisitorForm() {
                           "& .MuiMenuItem-root": {
                             color: "rgba(255, 255, 255, 0.9)",
                             "&:hover": { backgroundColor: "#f5576c30" },
-                            "&.Mui-selected": { 
+                            "&.Mui-selected": {
                               backgroundColor: "#f5576c40",
                               "&:hover": { backgroundColor: "#f5576c50" },
                             },
@@ -2380,33 +2628,35 @@ export default function VisitorForm() {
 
           {/* Step 3: Purpose Selection */}
           {activeStep === 3 && (
-            <Box sx={{ 
-              animation: `${fadeInUp} 0.5s ease-out`,
-              ...(isMobile && {
-                maxHeight: "calc(100vh - 220px)",
-                overflowY: "auto",
-                pb: 6,
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  marginRight: "3px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(102, 126, 234, 0.3)",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(102, 126, 234, 0.1)",
-                  "&:hover": {
-                    background: "rgba(102, 126, 234, 0.5)",
+            <Box
+              sx={{
+                animation: `${fadeInUp} 0.5s ease-out`,
+                ...(isMobile && {
+                  maxHeight: "calc(100vh - 220px)",
+                  overflowY: "auto",
+                  pb: 6,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
                   },
-                },
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgba(102, 126, 234, 0.3) transparent",
-                pr: "2px",
-              }),
-            }}>
-              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                    marginRight: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(102, 126, 234, 0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(102, 126, 234, 0.1)",
+                    "&:hover": {
+                      background: "rgba(102, 126, 234, 0.5)",
+                    },
+                  },
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(102, 126, 234, 0.3) transparent",
+                  pr: "2px",
+                }),
+              }}
+            >
+              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 }, pt: { xs: 2, sm: 2.5 } }}>
                 <Avatar
                   sx={{
                     width: { xs: 60, sm: 80, md: 100 },
@@ -2419,16 +2669,19 @@ export default function VisitorForm() {
                     boxShadow: "0 8px 32px rgba(102, 126, 234, 0.4)",
                   }}
                 >
-                  <BusinessCenterIcon sx={{ fontSize: { xs: 32, sm: 40, md: 50 } }} />
+                  <BusinessCenterIcon
+                    sx={{ fontSize: { xs: 32, sm: 40, md: 50 } }}
+                  />
                 </Avatar>
                 <Typography
                   variant={isMobile ? "h5" : "h4"}
-                  sx={{ 
-                    color: "white", 
-                    fontWeight: 700, 
+                  sx={{
+                    color: "white",
+                    fontWeight: 700,
                     mb: { xs: 0.5, sm: 1 },
                     fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" },
-                    background: "linear-gradient(135deg, #fff 0%, #e0e7ff 100%)",
+                    background:
+                      "linear-gradient(135deg, #fff 0%, #e0e7ff 100%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
@@ -2448,22 +2701,48 @@ export default function VisitorForm() {
                 </Typography>
               </Box>
 
-              <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
+              <Grid
+                container
+                spacing={{ xs: 1.5, sm: 2, md: 2 }}
+                alignItems="stretch"
+                justifyContent="center"
+                sx={{
+                  width: "100%",
+                  maxWidth: { xs: "100%", md: 720 },
+                  mx: { md: "auto" },
+                }}
+              >
                 {PURPOSES.map((purpose, index) => (
-                  <Grid item xs={6} sm={6} md={3} key={purpose.id}>
+                  <Grid
+                    item
+                    xs={6}
+                    sm={6}
+                    md={3}
+                    key={purpose.id}
+                    sx={{ display: "flex", minWidth: 0 }}
+                  >
                     <CardActionArea
                       onClick={() => handlePurposeSelect(purpose.id)}
                       sx={{
+                        flex: 1,
+                        width: "100%",
+                        minWidth: 0,
+                        display: "block",
                         borderRadius: { xs: 3, sm: 4 },
                         transition: "all 0.3s ease",
+                        "& .MuiCardActionArea-focusHighlight": {
+                          borderRadius: { xs: 3, sm: 4 },
+                        },
                       }}
                     >
-                        <Card
+                      <Card
                         sx={{
-                          p: { xs: 1.5, sm: 2.5, md: 3.5 },
+                          p: { xs: 1.5, sm: 2.5, md: 2.5 },
                           textAlign: "center",
+                          width: "100%",
+                          boxSizing: "border-box",
                           height: "100%",
-                          minHeight: { xs: 120, sm: 150, md: 160 },
+                          minHeight: { xs: 120, sm: 150, md: 170 },
                           background:
                             formData.purpose === purpose.id
                               ? `linear-gradient(135deg, ${purpose.color}50 0%, ${purpose.color}30 100%)`
@@ -2489,21 +2768,23 @@ export default function VisitorForm() {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: formData.purpose === purpose.id
-                              ? `radial-gradient(circle at 50% 50%, ${purpose.color}20, transparent 70%)`
-                              : "transparent",
+                            background:
+                              formData.purpose === purpose.id
+                                ? `radial-gradient(circle at 50% 50%, ${purpose.color}20, transparent 70%)`
+                                : "transparent",
                             opacity: 0.8,
                             transition: "all 0.4s ease",
                           },
                           "&:hover": {
-                            transform: { 
-                              xs: "translateY(-4px) scale(1.02)", 
-                              sm: "translateY(-6px) scale(1.02)", 
-                              md: "translateY(-8px) scale(1.02)" 
+                            transform: {
+                              xs: "translateY(-4px) scale(1.02)",
+                              sm: "translateY(-6px) scale(1.02)",
+                              md: "translateY(-8px) scale(1.02)",
                             },
-                            boxShadow: formData.purpose === purpose.id
-                              ? `0 12px 40px ${purpose.color}60, 0 0 0 1px ${purpose.color}40`
-                              : `0 12px 40px rgba(255, 255, 255, 0.15)`,
+                            boxShadow:
+                              formData.purpose === purpose.id
+                                ? `0 12px 40px ${purpose.color}60, 0 0 0 1px ${purpose.color}40`
+                                : `0 12px 40px rgba(255, 255, 255, 0.15)`,
                             border: `3px solid ${purpose.color}`,
                             background: `linear-gradient(135deg, ${purpose.color}40 0%, ${purpose.color}20 100%)`,
                             "&::before": {
@@ -2525,9 +2806,10 @@ export default function VisitorForm() {
                             sx={{
                               width: { xs: 56, sm: 64, md: 80 },
                               height: { xs: 56, sm: 64, md: 80 },
-                              background: formData.purpose === purpose.id
-                                ? `linear-gradient(135deg, ${purpose.color} 0%, ${purpose.color}cc 100%)`
-                                : `rgba(255, 255, 255, 0.1)`,
+                              background:
+                                formData.purpose === purpose.id
+                                  ? `linear-gradient(135deg, ${purpose.color} 0%, ${purpose.color}cc 100%)`
+                                  : `rgba(255, 255, 255, 0.1)`,
                               borderRadius: { xs: 2, sm: 2.5, md: 3 },
                               display: "flex",
                               alignItems: "center",
@@ -2539,17 +2821,19 @@ export default function VisitorForm() {
                                 formData.purpose === purpose.id
                                   ? `${pulse} 2s ease-in-out infinite`
                                   : "none",
-                              boxShadow: formData.purpose === purpose.id
-                                ? `0 8px 24px ${purpose.color}60`
-                                : "0 4px 12px rgba(0, 0, 0, 0.2)",
+                              boxShadow:
+                                formData.purpose === purpose.id
+                                  ? `0 8px 24px ${purpose.color}60`
+                                  : "0 4px 12px rgba(0, 0, 0, 0.2)",
                             }}
                           >
                             <Typography
                               sx={{
                                 fontSize: { xs: 32, sm: 36, md: 44 },
-                                filter: formData.purpose === purpose.id
-                                  ? "drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))"
-                                  : "none",
+                                filter:
+                                  formData.purpose === purpose.id
+                                    ? "drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3))"
+                                    : "none",
                               }}
                             >
                               {purpose.icon}
@@ -2558,13 +2842,18 @@ export default function VisitorForm() {
                           <Typography
                             sx={{
                               color: "white",
-                              fontSize: { xs: "0.8rem", sm: "1rem", md: "1.125rem" },
+                              fontSize: {
+                                xs: "0.8rem",
+                                sm: "1rem",
+                                md: "1.125rem",
+                              },
                               fontWeight:
                                 formData.purpose === purpose.id ? 700 : 500,
                               letterSpacing: "0.4px",
-                              textShadow: formData.purpose === purpose.id
-                                ? "0 2px 8px rgba(0, 0, 0, 0.3)"
-                                : "none",
+                              textShadow:
+                                formData.purpose === purpose.id
+                                  ? "0 2px 8px rgba(0, 0, 0, 0.3)"
+                                  : "none",
                               transition: "all 0.3s ease",
                               lineHeight: 1.2,
                               px: { xs: 0.5, sm: 1 },
@@ -2586,7 +2875,11 @@ export default function VisitorForm() {
                                 height: { xs: 3, sm: 3.5, md: 4 },
                                 background: `linear-gradient(90deg, transparent, ${purpose.color}, transparent)`,
                                 borderRadius: 2,
-                                margin: { xs: "8px auto 0", sm: "10px auto 0", md: "12px auto 0" },
+                                margin: {
+                                  xs: "8px auto 0",
+                                  sm: "10px auto 0",
+                                  md: "12px auto 0",
+                                },
                                 animation: `${shimmer} 2s ease-in-out infinite`,
                               }}
                             />
@@ -2602,33 +2895,35 @@ export default function VisitorForm() {
 
           {/* Step 4: Dynamic Details Based on Purpose */}
           {activeStep === 4 && (
-            <Box sx={{ 
-              animation: `${fadeInUp} 0.5s ease-out`,
-              ...(isMobile && {
-                maxHeight: "calc(100vh - 220px)",
-                overflowY: "auto",
-                pb: 6,
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  marginRight: "3px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: "rgba(33, 150, 243, 0.3)",
-                  borderRadius: "10px",
-                  border: "1px solid rgba(33, 150, 243, 0.1)",
-                  "&:hover": {
-                    background: "rgba(33, 150, 243, 0.5)",
+            <Box
+              sx={{
+                animation: `${fadeInUp} 0.5s ease-out`,
+                ...(isMobile && {
+                  maxHeight: "calc(100vh - 220px)",
+                  overflowY: "auto",
+                  pb: 6,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
                   },
-                },
-                scrollbarWidth: "thin",
-                scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
-                pr: "2px",
-              }),
-            }}>
-              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
+                  "&::-webkit-scrollbar-track": {
+                    background: "transparent",
+                    marginRight: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: "rgba(33, 150, 243, 0.3)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(33, 150, 243, 0.1)",
+                    "&:hover": {
+                      background: "rgba(33, 150, 243, 0.5)",
+                    },
+                  },
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(33, 150, 243, 0.3) transparent",
+                  pr: "2px",
+                }),
+              }}
+            >
+              <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 }, pt: { xs: 2, sm: 2.5 } }}>
                 <Avatar
                   sx={{
                     width: { xs: 70, sm: 90, md: 100 },
@@ -2650,11 +2945,12 @@ export default function VisitorForm() {
                 </Avatar>
                 <Typography
                   variant={isMobile ? "h5" : "h4"}
-                  sx={{ 
-                    color: "white", 
-                    fontWeight: 700, 
+                  sx={{
+                    color: "white",
+                    fontWeight: 700,
                     mb: { xs: 0.5, sm: 1 },
-                    background: "linear-gradient(135deg, #fff 0%, #e0e7ff 100%)",
+                    background:
+                      "linear-gradient(135deg, #fff 0%, #e0e7ff 100%)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
@@ -2673,7 +2969,14 @@ export default function VisitorForm() {
                 </Typography>
               </Box>
 
-              <Stack spacing={{ xs: 2, sm: 2.5 }}>
+              <Stack
+                spacing={{ xs: 2, sm: 2.5 }}
+                sx={{
+                  width: "100%",
+                  maxWidth: { xs: "100%", md: 560 },
+                  mx: { md: "auto" },
+                }}
+              >
                 {/* Meeting: Person name, Place, Department, Meeting with whom, Company name, Govt ID */}
                 {selectedPurpose?.id === "meeting" && (
                   <>
@@ -2691,7 +2994,10 @@ export default function VisitorForm() {
                             <PersonIcon sx={{ color: selectedPurpose.color }} />
                           </InputAdornment>
                         ),
-                        inputProps: { autoComplete: "off", name: "visitor-name-dnf" },
+                        inputProps: {
+                          autoComplete: "off",
+                          name: "visitor-name-dnf",
+                        },
                       }}
                       sx={{
                         "& .MuiOutlinedInput-root": {
@@ -2726,7 +3032,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                            <BusinessIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -2736,14 +3044,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -2773,12 +3087,15 @@ export default function VisitorForm() {
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: selectedPurpose.color,
                           },
-                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)"  },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
                         }}
                         MenuProps={{
                           PaperProps: {
                             sx: {
-                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                               backdropFilter: "blur(20px)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "12px",
@@ -2786,10 +3103,14 @@ export default function VisitorForm() {
                               maxHeight: { xs: 300, sm: 400 },
                               "& .MuiMenuItem-root": {
                                 color: "rgba(255, 255, 255, 0.9)",
-                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
-                                "&.Mui-selected": { 
+                                "&:hover": {
+                                  backgroundColor: `${selectedPurpose.color}30`,
+                                },
+                                "&.Mui-selected": {
                                   backgroundColor: `${selectedPurpose.color}40`,
-                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                  "&:hover": {
+                                    backgroundColor: `${selectedPurpose.color}50`,
+                                  },
                                 },
                               },
                             },
@@ -2797,7 +3118,9 @@ export default function VisitorForm() {
                         }}
                       >
                         {DEPARTMENTS.map((dept) => (
-                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -2813,7 +3136,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <MeetingRoomIcon sx={{ color: selectedPurpose.color }} />
+                            <MeetingRoomIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -2823,14 +3148,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -2845,7 +3176,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessCenterIcon sx={{ color: selectedPurpose.color }} />
+                            <BusinessCenterIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -2855,14 +3188,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -2879,58 +3218,120 @@ export default function VisitorForm() {
                           gap: 1,
                         }}
                       >
-                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        <GroupsIcon
+                          sx={{ color: selectedPurpose.color, fontSize: 20 }}
+                        />
                         Number of Visitors
                       </Typography>
                       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          variant={
+                            formData.visitorCountType === "self"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "self",
+                              numberOfVisitors: "1",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "self"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "self"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "self"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "self"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "self"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <PersonIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Just Me
+                            </Typography>
                           </Box>
                         </Button>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          variant={
+                            formData.visitorCountType === "multiple"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "multiple",
+                              numberOfVisitors: "",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "multiple"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "multiple"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "multiple"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "multiple"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "multiple"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <GroupsIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Multiple
+                            </Typography>
                           </Box>
                         </Button>
                       </Box>
@@ -2943,8 +3344,14 @@ export default function VisitorForm() {
                             value={formData.numberOfVisitors}
                             onChange={(e) => {
                               const value = e.target.value.replace(/\D/g, "");
-                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
-                                setFormData({ ...formData, numberOfVisitors: value });
+                              if (
+                                value === "" ||
+                                (parseInt(value) > 0 && parseInt(value) <= 50)
+                              ) {
+                                setFormData({
+                                  ...formData,
+                                  numberOfVisitors: value,
+                                });
                               }
                             }}
                             placeholder="Enter total number of visitors (1-50)"
@@ -2953,24 +3360,36 @@ export default function VisitorForm() {
                             InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
-                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                  <GroupsIcon
+                                    sx={{ color: selectedPurpose.color }}
+                                  />
                                 </InputAdornment>
                               ),
-                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                              inputProps: {
+                                autoComplete: "off",
+                                min: 1,
+                                max: 50,
+                              },
                             }}
                             sx={{
                               "& .MuiOutlinedInput-root": {
                                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                                 color: "white",
                                 borderRadius: 3,
-                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                                "&.Mui-focused fieldset": { 
+                                "& fieldset": {
+                                  borderColor: "rgba(255, 255, 255, 0.2)",
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: `${selectedPurpose.color}80`,
+                                },
+                                "&.Mui-focused fieldset": {
                                   borderColor: selectedPurpose.color,
                                   boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                                 },
                               },
-                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                              "& .MuiInputLabel-root": {
+                                color: "rgba(255, 255, 255, 0.7)",
+                              },
                             }}
                           />
                         </Fade>
@@ -2980,32 +3399,48 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Government ID"
+                      label="Aadhar Number"
                       value={formData.governmentId}
                       onChange={handleChange("governmentId")}
-                      placeholder="Aadhar, PAN, Driving License, etc."
+                      placeholder="Enter your Aadhar number"
                       autoComplete="off"
+                      error={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                      }
+                      helperText={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                          ? `${formData.governmentId.length}/12 digits entered`
+                          : ""
+                      }
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
                             <BadgeIcon sx={{ color: selectedPurpose.color }} />
                           </InputAdornment>
                         ),
-                        inputProps: { autoComplete: "off" },
+                        inputProps: { autoComplete: "off", maxLength: 12, inputMode: "numeric" },
                       }}
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
                   </>
@@ -3035,14 +3470,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3057,7 +3498,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                            <BusinessIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -3067,14 +3510,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3104,12 +3553,15 @@ export default function VisitorForm() {
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: selectedPurpose.color,
                           },
-                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
                         }}
                         MenuProps={{
                           PaperProps: {
                             sx: {
-                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                               backdropFilter: "blur(20px)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "12px",
@@ -3117,10 +3569,14 @@ export default function VisitorForm() {
                               maxHeight: { xs: 300, sm: 400 },
                               "& .MuiMenuItem-root": {
                                 color: "rgba(255, 255, 255, 0.9)",
-                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
-                                "&.Mui-selected": { 
+                                "&:hover": {
+                                  backgroundColor: `${selectedPurpose.color}30`,
+                                },
+                                "&.Mui-selected": {
                                   backgroundColor: `${selectedPurpose.color}40`,
-                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                  "&:hover": {
+                                    backgroundColor: `${selectedPurpose.color}50`,
+                                  },
                                 },
                               },
                             },
@@ -3128,7 +3584,9 @@ export default function VisitorForm() {
                         }}
                       >
                         {INTERVIEW_TYPES.map((type) => (
-                          <MenuItem key={type.id} value={type.id}>{type.label}</MenuItem>
+                          <MenuItem key={type.id} value={type.id}>
+                            {type.label}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -3159,12 +3617,15 @@ export default function VisitorForm() {
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: selectedPurpose.color,
                           },
-                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
                         }}
                         MenuProps={{
                           PaperProps: {
                             sx: {
-                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                               backdropFilter: "blur(20px)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "12px",
@@ -3172,10 +3633,14 @@ export default function VisitorForm() {
                               maxHeight: { xs: 300, sm: 400 },
                               "& .MuiMenuItem-root": {
                                 color: "rgba(255, 255, 255, 0.9)",
-                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
-                                "&.Mui-selected": { 
+                                "&:hover": {
+                                  backgroundColor: `${selectedPurpose.color}30`,
+                                },
+                                "&.Mui-selected": {
                                   backgroundColor: `${selectedPurpose.color}40`,
-                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                  "&:hover": {
+                                    backgroundColor: `${selectedPurpose.color}50`,
+                                  },
                                 },
                               },
                             },
@@ -3183,7 +3648,9 @@ export default function VisitorForm() {
                         }}
                       >
                         {DEPARTMENTS.map((dept) => (
-                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -3199,7 +3666,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <PersonPinIcon sx={{ color: selectedPurpose.color }} />
+                            <PersonPinIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -3209,14 +3678,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3233,58 +3708,120 @@ export default function VisitorForm() {
                           gap: 1,
                         }}
                       >
-                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        <GroupsIcon
+                          sx={{ color: selectedPurpose.color, fontSize: 20 }}
+                        />
                         Number of Visitors
                       </Typography>
                       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          variant={
+                            formData.visitorCountType === "self"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "self",
+                              numberOfVisitors: "1",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "self"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "self"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "self"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "self"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "self"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <PersonIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Just Me
+                            </Typography>
                           </Box>
                         </Button>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          variant={
+                            formData.visitorCountType === "multiple"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "multiple",
+                              numberOfVisitors: "",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "multiple"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "multiple"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "multiple"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "multiple"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "multiple"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <GroupsIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Multiple
+                            </Typography>
                           </Box>
                         </Button>
                       </Box>
@@ -3297,8 +3834,14 @@ export default function VisitorForm() {
                             value={formData.numberOfVisitors}
                             onChange={(e) => {
                               const value = e.target.value.replace(/\D/g, "");
-                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
-                                setFormData({ ...formData, numberOfVisitors: value });
+                              if (
+                                value === "" ||
+                                (parseInt(value) > 0 && parseInt(value) <= 50)
+                              ) {
+                                setFormData({
+                                  ...formData,
+                                  numberOfVisitors: value,
+                                });
                               }
                             }}
                             placeholder="Enter total number of visitors (1-50)"
@@ -3307,24 +3850,36 @@ export default function VisitorForm() {
                             InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
-                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                  <GroupsIcon
+                                    sx={{ color: selectedPurpose.color }}
+                                  />
                                 </InputAdornment>
                               ),
-                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                              inputProps: {
+                                autoComplete: "off",
+                                min: 1,
+                                max: 50,
+                              },
                             }}
                             sx={{
                               "& .MuiOutlinedInput-root": {
                                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                                 color: "white",
                                 borderRadius: 3,
-                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                                "&.Mui-focused fieldset": { 
+                                "& fieldset": {
+                                  borderColor: "rgba(255, 255, 255, 0.2)",
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: `${selectedPurpose.color}80`,
+                                },
+                                "&.Mui-focused fieldset": {
                                   borderColor: selectedPurpose.color,
                                   boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                                 },
                               },
-                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                              "& .MuiInputLabel-root": {
+                                color: "rgba(255, 255, 255, 0.7)",
+                              },
                             }}
                           />
                         </Fade>
@@ -3334,11 +3889,21 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Government ID"
+                      label="Aadhar Number"
                       value={formData.governmentId}
                       onChange={handleChange("governmentId")}
-                      placeholder="Aadhar, PAN, Driving License, etc."
+                      placeholder="Enter your Aadhar number"
                       autoComplete="off"
+                      error={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                      }
+                      helperText={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                          ? `${formData.governmentId.length}/12 digits entered`
+                          : ""
+                      }
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -3352,14 +3917,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
                   </>
@@ -3389,14 +3960,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3421,14 +3998,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3443,7 +4026,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                            <BusinessIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -3453,14 +4038,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3490,12 +4081,15 @@ export default function VisitorForm() {
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: selectedPurpose.color,
                           },
-                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
                         }}
                         MenuProps={{
                           PaperProps: {
                             sx: {
-                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                               backdropFilter: "blur(20px)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "12px",
@@ -3503,10 +4097,14 @@ export default function VisitorForm() {
                               maxHeight: { xs: 300, sm: 400 },
                               "& .MuiMenuItem-root": {
                                 color: "rgba(255, 255, 255, 0.9)",
-                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
-                                "&.Mui-selected": { 
+                                "&:hover": {
+                                  backgroundColor: `${selectedPurpose.color}30`,
+                                },
+                                "&.Mui-selected": {
                                   backgroundColor: `${selectedPurpose.color}40`,
-                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                  "&:hover": {
+                                    backgroundColor: `${selectedPurpose.color}50`,
+                                  },
                                 },
                               },
                             },
@@ -3514,7 +4112,9 @@ export default function VisitorForm() {
                         }}
                       >
                         {DEPARTMENTS.map((dept) => (
-                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -3531,7 +4131,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <ScheduleIcon sx={{ color: selectedPurpose.color }} />
+                            <ScheduleIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off", min: 1 },
@@ -3541,14 +4143,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3565,58 +4173,120 @@ export default function VisitorForm() {
                           gap: 1,
                         }}
                       >
-                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        <GroupsIcon
+                          sx={{ color: selectedPurpose.color, fontSize: 20 }}
+                        />
                         Number of Visitors
                       </Typography>
                       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          variant={
+                            formData.visitorCountType === "self"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "self",
+                              numberOfVisitors: "1",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "self"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "self"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "self"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "self"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "self"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <PersonIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Just Me
+                            </Typography>
                           </Box>
                         </Button>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          variant={
+                            formData.visitorCountType === "multiple"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "multiple",
+                              numberOfVisitors: "",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "multiple"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "multiple"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "multiple"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "multiple"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "multiple"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <GroupsIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Multiple
+                            </Typography>
                           </Box>
                         </Button>
                       </Box>
@@ -3629,8 +4299,14 @@ export default function VisitorForm() {
                             value={formData.numberOfVisitors}
                             onChange={(e) => {
                               const value = e.target.value.replace(/\D/g, "");
-                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
-                                setFormData({ ...formData, numberOfVisitors: value });
+                              if (
+                                value === "" ||
+                                (parseInt(value) > 0 && parseInt(value) <= 50)
+                              ) {
+                                setFormData({
+                                  ...formData,
+                                  numberOfVisitors: value,
+                                });
                               }
                             }}
                             placeholder="Enter total number of visitors (1-50)"
@@ -3639,24 +4315,36 @@ export default function VisitorForm() {
                             InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
-                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                  <GroupsIcon
+                                    sx={{ color: selectedPurpose.color }}
+                                  />
                                 </InputAdornment>
                               ),
-                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                              inputProps: {
+                                autoComplete: "off",
+                                min: 1,
+                                max: 50,
+                              },
                             }}
                             sx={{
                               "& .MuiOutlinedInput-root": {
                                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                                 color: "white",
                                 borderRadius: 3,
-                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                                "&.Mui-focused fieldset": { 
+                                "& fieldset": {
+                                  borderColor: "rgba(255, 255, 255, 0.2)",
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: `${selectedPurpose.color}80`,
+                                },
+                                "&.Mui-focused fieldset": {
                                   borderColor: selectedPurpose.color,
                                   boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                                 },
                               },
-                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                              "& .MuiInputLabel-root": {
+                                color: "rgba(255, 255, 255, 0.7)",
+                              },
                             }}
                           />
                         </Fade>
@@ -3666,11 +4354,21 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Government ID"
+                      label="Aadhar Number"
                       value={formData.governmentId}
                       onChange={handleChange("governmentId")}
-                      placeholder="Aadhar, PAN, Driving License, etc."
+                      placeholder="Enter your Aadhar number"
                       autoComplete="off"
+                      error={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                      }
+                      helperText={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                          ? `${formData.governmentId.length}/12 digits entered`
+                          : ""
+                      }
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -3684,14 +4382,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
                   </>
@@ -3721,14 +4425,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3743,7 +4453,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <BusinessIcon sx={{ color: selectedPurpose.color }} />
+                            <BusinessIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -3753,14 +4465,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3775,7 +4493,9 @@ export default function VisitorForm() {
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
-                            <PersonPinIcon sx={{ color: selectedPurpose.color }} />
+                            <PersonPinIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
                           </InputAdornment>
                         ),
                         inputProps: { autoComplete: "off" },
@@ -3785,14 +4505,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
 
@@ -3822,12 +4548,15 @@ export default function VisitorForm() {
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: selectedPurpose.color,
                           },
-                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
                         }}
                         MenuProps={{
                           PaperProps: {
                             sx: {
-                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                               backdropFilter: "blur(20px)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "12px",
@@ -3835,10 +4564,14 @@ export default function VisitorForm() {
                               maxHeight: { xs: 300, sm: 400 },
                               "& .MuiMenuItem-root": {
                                 color: "rgba(255, 255, 255, 0.9)",
-                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
-                                "&.Mui-selected": { 
+                                "&:hover": {
+                                  backgroundColor: `${selectedPurpose.color}30`,
+                                },
+                                "&.Mui-selected": {
                                   backgroundColor: `${selectedPurpose.color}40`,
-                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                  "&:hover": {
+                                    backgroundColor: `${selectedPurpose.color}50`,
+                                  },
                                 },
                               },
                             },
@@ -3846,7 +4579,9 @@ export default function VisitorForm() {
                         }}
                       >
                         {DEPARTMENTS.map((dept) => (
-                          <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                          <MenuItem key={dept} value={dept}>
+                            {dept}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -3877,12 +4612,15 @@ export default function VisitorForm() {
                           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                             borderColor: selectedPurpose.color,
                           },
-                          "& .MuiSelect-icon": { color: "rgba(255, 255, 255, 0.7)" },
+                          "& .MuiSelect-icon": {
+                            color: "rgba(255, 255, 255, 0.7)",
+                          },
                         }}
                         MenuProps={{
                           PaperProps: {
                             sx: {
-                              background: "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
+                              background:
+                                "linear-gradient(135deg, #0a1929 0%, #001e3c 100%)",
                               backdropFilter: "blur(20px)",
                               border: "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "12px",
@@ -3890,10 +4628,14 @@ export default function VisitorForm() {
                               maxHeight: { xs: 300, sm: 400 },
                               "& .MuiMenuItem-root": {
                                 color: "rgba(255, 255, 255, 0.9)",
-                                "&:hover": { backgroundColor: `${selectedPurpose.color}30` },
-                                "&.Mui-selected": { 
+                                "&:hover": {
+                                  backgroundColor: `${selectedPurpose.color}30`,
+                                },
+                                "&.Mui-selected": {
                                   backgroundColor: `${selectedPurpose.color}40`,
-                                  "&:hover": { backgroundColor: `${selectedPurpose.color}50` },
+                                  "&:hover": {
+                                    backgroundColor: `${selectedPurpose.color}50`,
+                                  },
                                 },
                               },
                             },
@@ -3901,7 +4643,9 @@ export default function VisitorForm() {
                         }}
                       >
                         {OTHER_VISIT_PURPOSES.map((purpose) => (
-                          <MenuItem key={purpose} value={purpose}>{purpose}</MenuItem>
+                          <MenuItem key={purpose} value={purpose}>
+                            {purpose}
+                          </MenuItem>
                         ))}
                       </Select>
                     </FormControl>
@@ -3919,58 +4663,120 @@ export default function VisitorForm() {
                           gap: 1,
                         }}
                       >
-                        <GroupsIcon sx={{ color: selectedPurpose.color, fontSize: 20 }} />
+                        <GroupsIcon
+                          sx={{ color: selectedPurpose.color, fontSize: 20 }}
+                        />
                         Number of Visitors
                       </Typography>
                       <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "self" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "self", numberOfVisitors: "1" })}
+                          variant={
+                            formData.visitorCountType === "self"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "self",
+                              numberOfVisitors: "1",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "self" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "self"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "self" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "self"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "self"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "self"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "self"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "self"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <PersonIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Just Me</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Just Me
+                            </Typography>
                           </Box>
                         </Button>
                         <Button
                           fullWidth
-                          variant={formData.visitorCountType === "multiple" ? "contained" : "outlined"}
-                          onClick={() => setFormData({ ...formData, visitorCountType: "multiple", numberOfVisitors: "" })}
+                          variant={
+                            formData.visitorCountType === "multiple"
+                              ? "contained"
+                              : "outlined"
+                          }
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              visitorCountType: "multiple",
+                              numberOfVisitors: "",
+                            })
+                          }
                           sx={{
                             py: 1.5,
                             borderRadius: 2,
-                            borderColor: formData.visitorCountType === "multiple" ? selectedPurpose.color : "rgba(255, 255, 255, 0.2)",
-                            background: formData.visitorCountType === "multiple"
-                              ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
-                              : "rgba(255, 255, 255, 0.05)",
-                            color: formData.visitorCountType === "multiple" ? "white" : "rgba(255, 255, 255, 0.7)",
+                            borderColor:
+                              formData.visitorCountType === "multiple"
+                                ? selectedPurpose.color
+                                : "rgba(255, 255, 255, 0.2)",
+                            background:
+                              formData.visitorCountType === "multiple"
+                                ? `linear-gradient(135deg, ${selectedPurpose.color} 0%, ${selectedPurpose.color}cc 100%)`
+                                : "rgba(255, 255, 255, 0.05)",
+                            color:
+                              formData.visitorCountType === "multiple"
+                                ? "white"
+                                : "rgba(255, 255, 255, 0.7)",
                             "&:hover": {
                               borderColor: selectedPurpose.color,
-                              background: formData.visitorCountType === "multiple"
-                                ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
-                                : "rgba(255, 255, 255, 0.08)",
+                              background:
+                                formData.visitorCountType === "multiple"
+                                  ? `linear-gradient(135deg, ${selectedPurpose.color}cc 0%, ${selectedPurpose.color}99 100%)`
+                                  : "rgba(255, 255, 255, 0.08)",
                             },
                           }}
                         >
-                          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <GroupsIcon sx={{ fontSize: 28 }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Multiple</Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              Multiple
+                            </Typography>
                           </Box>
                         </Button>
                       </Box>
@@ -3983,8 +4789,14 @@ export default function VisitorForm() {
                             value={formData.numberOfVisitors}
                             onChange={(e) => {
                               const value = e.target.value.replace(/\D/g, "");
-                              if (value === "" || (parseInt(value) > 0 && parseInt(value) <= 50)) {
-                                setFormData({ ...formData, numberOfVisitors: value });
+                              if (
+                                value === "" ||
+                                (parseInt(value) > 0 && parseInt(value) <= 50)
+                              ) {
+                                setFormData({
+                                  ...formData,
+                                  numberOfVisitors: value,
+                                });
                               }
                             }}
                             placeholder="Enter total number of visitors (1-50)"
@@ -3993,24 +4805,36 @@ export default function VisitorForm() {
                             InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
-                                  <GroupsIcon sx={{ color: selectedPurpose.color }} />
+                                  <GroupsIcon
+                                    sx={{ color: selectedPurpose.color }}
+                                  />
                                 </InputAdornment>
                               ),
-                              inputProps: { autoComplete: "off", min: 1, max: 50 },
+                              inputProps: {
+                                autoComplete: "off",
+                                min: 1,
+                                max: 50,
+                              },
                             }}
                             sx={{
                               "& .MuiOutlinedInput-root": {
                                 backgroundColor: "rgba(255, 255, 255, 0.05)",
                                 color: "white",
                                 borderRadius: 3,
-                                "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                                "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                                "&.Mui-focused fieldset": { 
+                                "& fieldset": {
+                                  borderColor: "rgba(255, 255, 255, 0.2)",
+                                },
+                                "&:hover fieldset": {
+                                  borderColor: `${selectedPurpose.color}80`,
+                                },
+                                "&.Mui-focused fieldset": {
                                   borderColor: selectedPurpose.color,
                                   boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                                 },
                               },
-                              "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                              "& .MuiInputLabel-root": {
+                                color: "rgba(255, 255, 255, 0.7)",
+                              },
                             }}
                           />
                         </Fade>
@@ -4020,11 +4844,21 @@ export default function VisitorForm() {
                     <TextField
                       fullWidth
                       required
-                      label="Government ID"
+                      label="Aadhar Number"
                       value={formData.governmentId}
                       onChange={handleChange("governmentId")}
-                      placeholder="Aadhar, PAN, Driving License, etc."
+                      placeholder="Enter your Aadhar number"
                       autoComplete="off"
+                      error={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                      }
+                      helperText={
+                        formData.governmentId.length > 0 &&
+                        formData.governmentId.length !== 12
+                          ? `${formData.governmentId.length}/12 digits entered`
+                          : ""
+                      }
                       InputProps={{
                         startAdornment: (
                           <InputAdornment position="start">
@@ -4038,14 +4872,20 @@ export default function VisitorForm() {
                           backgroundColor: "rgba(255, 255, 255, 0.05)",
                           color: "white",
                           borderRadius: 3,
-                          "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
-                          "&:hover fieldset": { borderColor: `${selectedPurpose.color}80` },
-                          "&.Mui-focused fieldset": { 
+                          "& fieldset": {
+                            borderColor: "rgba(255, 255, 255, 0.2)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: `${selectedPurpose.color}80`,
+                          },
+                          "&.Mui-focused fieldset": {
                             borderColor: selectedPurpose.color,
                             boxShadow: `0 0 0 2px ${selectedPurpose.color}20`,
                           },
                         },
-                        "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+                        "& .MuiInputLabel-root": {
+                          color: "rgba(255, 255, 255, 0.7)",
+                        },
                       }}
                     />
                   </>
@@ -4162,11 +5002,7 @@ export default function VisitorForm() {
                 <ReviewItemMobile
                   label="Visitor Photo"
                   value={formData.photo ? "Photo Captured ✓" : "Not captured"}
-                  subValue={
-                    formData.photo
-                      ? "Ready for submission"
-                      : undefined
-                  }
+                  subValue={formData.photo ? "Ready for submission" : undefined}
                   icon={<CameraAltIcon />}
                   onEdit={() => handleEdit(1)}
                   uploadedPhoto={uploadedPhotoUrl}
@@ -4198,7 +5034,10 @@ export default function VisitorForm() {
                     />
                     <ReviewItemMobile
                       label="Office to Visit"
-                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      value={
+                        offices.find((o) => o.id === formData.officeToVisit)
+                          ?.name || formData.officeToVisit
+                      }
                       icon={<BusinessCenterIcon />}
                       onEdit={() => handleEdit(2)}
                       color={selectedPurpose?.color}
@@ -4253,14 +5092,21 @@ export default function VisitorForm() {
                     />
                     <ReviewItemMobile
                       label="Office to Visit"
-                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      value={
+                        offices.find((o) => o.id === formData.officeToVisit)
+                          ?.name || formData.officeToVisit
+                      }
                       icon={<BusinessCenterIcon />}
                       onEdit={() => handleEdit(2)}
                       color={selectedPurpose?.color}
                     />
                     <ReviewItemMobile
                       label="Interview Type"
-                      value={INTERVIEW_TYPES.find(t => t.id === formData.interviewType)?.label || formData.interviewType}
+                      value={
+                        INTERVIEW_TYPES.find(
+                          (t) => t.id === formData.interviewType,
+                        )?.label || formData.interviewType
+                      }
                       icon={<ScheduleIcon />}
                       onEdit={() => handleEdit(4)}
                       color={selectedPurpose?.color}
@@ -4315,7 +5161,10 @@ export default function VisitorForm() {
                     />
                     <ReviewItemMobile
                       label="Office to Visit"
-                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      value={
+                        offices.find((o) => o.id === formData.officeToVisit)
+                          ?.name || formData.officeToVisit
+                      }
                       icon={<BusinessIcon />}
                       onEdit={() => handleEdit(2)}
                       color={selectedPurpose?.color}
@@ -4363,7 +5212,10 @@ export default function VisitorForm() {
                     />
                     <ReviewItemMobile
                       label="Office to Visit"
-                      value={offices.find(o => o.id === formData.officeToVisit)?.name || formData.officeToVisit}
+                      value={
+                        offices.find((o) => o.id === formData.officeToVisit)
+                          ?.name || formData.officeToVisit
+                      }
                       icon={<BusinessIcon />}
                       onEdit={() => handleEdit(2)}
                       color={selectedPurpose?.color}
@@ -4402,7 +5254,11 @@ export default function VisitorForm() {
                 {/* Visitor Count - Common for all purposes */}
                 <ReviewItemMobile
                   label="Number of Visitors"
-                  value={formData.visitorCountType === "self" ? "Just Me (1)" : `${formData.numberOfVisitors} visitors`}
+                  value={
+                    formData.visitorCountType === "self"
+                      ? "Just Me (1)"
+                      : `${formData.numberOfVisitors} visitors`
+                  }
                   icon={<GroupsIcon />}
                   onEdit={() => handleEdit(4)}
                   color={selectedPurpose?.color || "#2196f3"}
@@ -4452,19 +5308,31 @@ export default function VisitorForm() {
         {!isMobile && (
           <Box
             sx={{
+              flexShrink: 0,
               textAlign: "center",
-              py: 2,
+              py: 1.75,
               borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "rgba(255, 255, 255, 0.02)",
             }}
           >
             <Typography
               variant="caption"
-              sx={{ color: "rgba(255, 255, 255, 0.5)" }}
+              sx={{
+                color: "rgba(255, 255, 255, 0.45)",
+                letterSpacing: "0.3px",
+              }}
             >
-              Powered by Midland Microfin Limited
+              Powered by{" "}
+              <Box
+                component="span"
+                sx={{ color: "rgba(255, 255, 255, 0.7)", fontWeight: 600 }}
+              >
+                Midland Microfin Limited
+              </Box>
             </Typography>
           </Box>
         )}
+        </Box>
       </Card>
 
       {/* Mobile Bottom Navigation */}
