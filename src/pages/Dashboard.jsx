@@ -4,11 +4,8 @@ import {
   Paper,
   Typography,
   Card,
-  CardContent,
   Button,
   Box,
-  Avatar,
-  Divider,
   ToggleButton,
   ToggleButtonGroup,
   Skeleton,
@@ -21,22 +18,23 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import {
-  CheckCircle,
+  CheckCircleOutline,
   BarChart,
   Logout,
   Today,
   AccessTime,
   Refresh,
-  Cancel,
+  HighlightOff,
   HourglassEmpty,
   CalendarMonth,
   EventNote,
   DateRange,
-  Groups,
-  Hotel,
-  Business,
+  GroupsOutlined,
+  HotelOutlined,
+  BusinessOutlined,
   Schedule,
-  MeetingRoom,
+  MeetingRoomOutlined,
+  InsertChartOutlined,
 } from "@mui/icons-material";
 import {
   BarChart as RechartsBarChart,
@@ -46,11 +44,10 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  Legend,
-  Cell,
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import MiniDrawer from "../components/MiniDrawer";
+import { StatCard, BRAND_GRADIENT } from "../components/ui";
 import { useThemeContext } from "../context/ThemeContext";
 import { getDashboardData } from "../utilities/apiUtils/apiHelper";
 
@@ -85,193 +82,104 @@ const PERIOD_OPTIONS = [
   },
 ];
 
-const CHART_COLORS = {
-  total: "#3b82f6",
-  approved: "#22c55e",
-  pending: "#f59e0b",
-  rejected: "#ef4444",
-  purple: "#8b5cf6",
-  cyan: "#06b6d4",
-  pink: "#ec4899",
-};
-
-const PIE_COLORS = [
-  "#3b82f6",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#ec4899",
-  "#06b6d4",
-];
-
-// ─── StatCard Component ──────────────────────────────────────
-const StatCard = ({ title, value, icon, color, subtitle }) => {
-  const { mode } = useThemeContext();
-  const isDark = mode === "dark";
-
-  return (
-    <Card
-      sx={{
-        position: "relative",
-        overflow: "hidden",
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        border: "1px solid",
-        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-        "&:hover": {
-          transform: "translateY(-6px)",
-          boxShadow: isDark
-            ? `0 12px 40px ${color}30`
-            : `0 12px 40px ${color}25`,
-        },
-      }}
-    >
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          background: `linear-gradient(90deg, ${color}, ${alpha(color, 0.6)})`,
-        }}
-      />
-      <CardContent sx={{ p: 2.5 }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ flex: 1 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-                fontSize: "0.68rem",
-                mb: 0.8,
-              }}
-            >
-              {title}
-            </Typography>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                color: "text.primary",
-                lineHeight: 1.1,
-                mb: 0.3,
-              }}
-            >
-              {value ?? 0}
-            </Typography>
-            {subtitle && (
-              <Typography
-                variant="caption"
-                sx={{ color: "text.secondary", fontSize: "0.7rem" }}
-              >
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-          <Avatar
-            sx={{
-              bgcolor: alpha(color, 0.1),
-              color,
-              width: 48,
-              height: 48,
-              borderRadius: 2.5,
-            }}
-          >
-            {icon}
-          </Avatar>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
+// Chart colors validated for CVD separation + contrast on each mode's card surface.
+// Status trio = request state; single-series charts use the brand color.
+const getChartColors = (isDark) =>
+  isDark
+    ? { approved: "#15803d", pending: "#d97706", rejected: "#b91c1c", series: "#6366f1" }
+    : { approved: "#15803d", pending: "#f59e0b", rejected: "#dc2626", series: "#4f46e5" };
 
 // ─── ChartCard Wrapper ───────────────────────────────────────
-const ChartCard = ({
-  title,
-  icon,
-  iconColor,
-  children,
-  height = 300,
-  description,
-}) => {
-  const { mode } = useThemeContext();
-  const isDark = mode === "dark";
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 3,
-        borderRadius: 3,
-        border: "1px solid",
-        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-        height: "100%",
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-        <Avatar
-          sx={{
-            bgcolor: alpha(iconColor, 0.1),
-            color: iconColor,
-            mr: 1.5,
-            width: 36,
-            height: 36,
-          }}
-        >
-          {icon}
-        </Avatar>
-        <Box>
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 700, lineHeight: 1.2 }}
-          >
-            {title}
-          </Typography>
-          {description && (
-            <Typography variant="caption" color="text.secondary">
-              {description}
-            </Typography>
-          )}
-        </Box>
+const ChartCard = ({ title, icon, iconColor, children, height = 300, description, legend }) => (
+  <Paper sx={{ p: { xs: 2, sm: 2.5 }, height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
+      <Box
+        sx={{
+          width: 34,
+          height: 34,
+          flexShrink: 0,
+          borderRadius: 2.5,
+          display: "grid",
+          placeItems: "center",
+          color: iconColor,
+          bgcolor: alpha(iconColor, 0.12),
+          "& svg": { fontSize: 18 },
+        }}
+      >
+        {icon}
       </Box>
-      <Box sx={{ width: "100%", height, mt: 1 }}>{children}</Box>
-    </Paper>
-  );
-};
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", lineHeight: 1.3 }}>{title}</Typography>
+        {description && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.4 }}>
+            {description}
+          </Typography>
+        )}
+      </Box>
+      {legend && (
+        <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 1.5, flexWrap: "wrap", pt: 0.5 }}>
+          {legend.map((l) => (
+            <Box key={l.label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Box sx={{ width: 10, height: 10, borderRadius: 0.75, bgcolor: l.color }} />
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                {l.label}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
+    {legend && (
+      <Box sx={{ display: { xs: "flex", sm: "none" }, gap: 1.5, mb: 1 }}>
+        {legend.map((l) => (
+          <Box key={l.label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <Box sx={{ width: 10, height: 10, borderRadius: 0.75, bgcolor: l.color }} />
+            <Typography variant="caption" color="text.secondary">{l.label}</Typography>
+          </Box>
+        ))}
+      </Box>
+    )}
+    <Box sx={{ width: "100%", height, mt: "auto" }}>{children}</Box>
+  </Paper>
+);
+
+const truncateLabel = (v) => (typeof v === "string" && v.length > 28 ? `${v.slice(0, 27)}…` : v);
+
+const EmptyChart = ({ text }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 1,
+      height: "100%",
+      borderRadius: 2,
+      border: "1px dashed",
+      borderColor: "divider",
+      color: "text.disabled",
+    }}
+  >
+    <InsertChartOutlined />
+    <Typography variant="body2">{text}</Typography>
+  </Box>
+);
 
 // ─── Custom Recharts Tooltip ─────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <Paper sx={{ p: 1.5, borderRadius: 2, boxShadow: 3, minWidth: 140 }}>
-      <Typography
-        variant="caption"
-        sx={{ fontWeight: 700, mb: 0.5, display: "block" }}
-      >
+    <Paper sx={{ px: 1.5, py: 1.25, borderRadius: 2, boxShadow: 8, minWidth: 150 }}>
+      <Typography variant="caption" sx={{ fontWeight: 700, mb: 0.75, display: "block" }}>
         {label}
       </Typography>
       {payload.map((entry, i) => (
-        <Box
-          key={i}
-          sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ color: entry.color, fontWeight: 600 }}
-          >
+        <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.25 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: 0.5, bgcolor: entry.color, flexShrink: 0 }} />
+          <Typography variant="caption" sx={{ color: "text.secondary", flex: 1, textTransform: "capitalize" }}>
             {entry.name}
           </Typography>
-          <Typography variant="caption" sx={{ fontWeight: 700 }}>
+          <Typography variant="caption" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
             {entry.value}
           </Typography>
         </Box>
@@ -333,56 +241,50 @@ const Dashboard = () => {
   const dateRange = dashboardData?.dateRange || {};
 
   // ── Stat Cards ──
-  const primaryStats = [
+  const allStats = [
     {
       title: "Total Visitors",
       value: cards.totalVisitors,
-      icon: <Groups fontSize="large" />,
-      color: "#3b82f6",
+      icon: <GroupsOutlined />,
+      color: "#6366f1",
       subtitle: "All visitor requests",
     },
     {
       title: "Pending Requests",
       value: cards.pendingRequests,
-      icon: <HourglassEmpty fontSize="large" />,
+      icon: <HourglassEmpty />,
       color: "#f59e0b",
       subtitle: "Awaiting approval",
     },
     {
       title: "Approved Requests",
       value: cards.approvedRequests,
-      icon: <CheckCircle fontSize="large" />,
-      color: "#22c55e",
+      icon: <CheckCircleOutline />,
+      color: "#16a34a",
       subtitle: `${cards.approvalRate ?? 0}% approval rate`,
     },
     {
       title: "Rejected Requests",
       value: cards.rejectedRequests,
-      icon: <Cancel fontSize="large" />,
+      icon: <HighlightOff />,
       color: "#ef4444",
       subtitle: `${cards.rejectionRate ?? 0}% rejection rate`,
     },
-  ];
-
-  const secondaryStats = [
     {
       title: "Guest House Alloc.",
       value: cards.guestHouseAllocations,
-      icon: <Hotel fontSize="large" />,
+      icon: <HotelOutlined />,
       color: "#06b6d4",
       subtitle: `${cards.totalGuestHouses ?? 0} guest houses`,
     },
     {
       title: "Total Offices",
       value: cards.totalOffices,
-      icon: <Business fontSize="large" />,
+      icon: <BusinessOutlined />,
       color: "#ec4899",
       subtitle: "Registered offices",
     },
   ];
-
-  // Combine all stats into a single array for single-line display
-  const allStats = [...primaryStats, ...secondaryStats];
 
   // ── Chart Data ──
   const monthlyTrendData = useMemo(() => {
@@ -433,9 +335,6 @@ const Dashboard = () => {
   }, [graphs.guestHouseUtilization]);
 
   // ── Helpers ──
-  const getPeriodLabel = () =>
-    PERIOD_OPTIONS.find((o) => o.value === period)?.label || period;
-
   const getGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return "Good Morning";
@@ -443,27 +342,19 @@ const Dashboard = () => {
     return "Good Evening";
   };
 
-  const renderSkeletons = (count = 4) =>
-    Array.from({ length: count }).map((_, i) => (
-      <Grid item xs={12} sm={6} md={3} key={i}>
-        <Card>
-          <CardContent sx={{ p: 3 }}>
-            <Skeleton variant="text" width="60%" height={20} />
-            <Skeleton variant="text" width="40%" height={50} sx={{ mt: 1 }} />
-            <Skeleton variant="text" width="80%" height={16} sx={{ mt: 1 }} />
-          </CardContent>
-        </Card>
-      </Grid>
-    ));
+  const colors = getChartColors(isDark);
 
   const chartAxisStyle = {
     fontSize: 11,
-    fill: isDark ? "#94a3b8" : "#64748b",
+    fill: isDark ? "#a1a1aa" : "#71717a",
   };
 
-  const gridStroke = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const gridStroke = isDark ? "#27272a" : "#ececee";
+  const cursorFill = isDark ? "rgba(255,255,255,0.04)" : "rgba(24,24,27,0.04)";
 
   const todaySummary = cards.todaySummary;
+
+  const smallChartHeight = 200;
 
   return (
     <MiniDrawer>
@@ -480,19 +371,12 @@ const Dashboard = () => {
       >
         <Box>
           <Typography
-            variant={isMobile ? "h5" : "h4"}
-            sx={{ fontWeight: 800, mb: 0.3 }}
+            component="h1"
+            sx={{ fontWeight: 800, fontSize: { xs: "1.5rem", sm: "1.9rem" }, letterSpacing: "-0.03em", lineHeight: 1.2 }}
           >
             {getGreeting()}, {username} 👋
           </Typography>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-            }}
-          >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 0.75 }}>
             <Typography variant="body2" color="text.secondary">
               Visitor management overview
             </Typography>
@@ -502,33 +386,42 @@ const Dashboard = () => {
                 label={`${dateRange.from} — ${dateRange.to}`}
                 size="small"
                 variant="outlined"
-                sx={{ fontWeight: 500, fontSize: "0.72rem" }}
+                sx={{ fontWeight: 500, bgcolor: "background.paper" }}
               />
             )}
           </Box>
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
           <Tooltip title="Refresh data">
-            <IconButton
-              onClick={() => fetchDashboard(period)}
-              color="primary"
-              disabled={loading}
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 2,
-              }}
-            >
-              <Refresh />
-            </IconButton>
+            <span>
+              <IconButton
+                onClick={() => fetchDashboard(period)}
+                disabled={loading}
+                sx={{
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  bgcolor: "background.paper",
+                  width: 38,
+                  height: 38,
+                  "&:hover": { bgcolor: "background.paper", color: "primary.main" },
+                  "& svg": {
+                    fontSize: 20,
+                    animation: loading ? "spin 0.9s linear infinite" : "none",
+                  },
+                  "@keyframes spin": { to: { transform: "rotate(360deg)" } },
+                }}
+              >
+                <Refresh />
+              </IconButton>
+            </span>
           </Tooltip>
           <Button
             variant="outlined"
             color="error"
             onClick={handleLogout}
             startIcon={<Logout />}
-            size="small"
-            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+            sx={{ bgcolor: "background.paper", height: 38 }}
           >
             Logout
           </Button>
@@ -536,75 +429,64 @@ const Dashboard = () => {
       </Box>
 
       {/* ─── Period Filter ─── */}
-      <Paper
-        elevation={0}
+      <Box
         sx={{
-          p: 1.5,
           mb: 3,
-          borderRadius: 3,
-          border: "1px solid",
-          borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          flexWrap: "wrap",
-          bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+          overflowX: "auto",
+          mx: { xs: -2, sm: 0 },
+          px: { xs: 2, sm: 0 },
+          "&::-webkit-scrollbar": { display: "none" },
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
-          <CalendarMonth fontSize="small" color="primary" />
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 600, color: "text.secondary" }}
-          >
-            Period:
-          </Typography>
-        </Box>
         <ToggleButtonGroup
           value={period}
           exclusive
           onChange={handlePeriodChange}
           size="small"
+          aria-label="Period"
           sx={{
-            flexWrap: "wrap",
+            p: 0.5,
             gap: 0.5,
+            borderRadius: 2.5,
+            border: 1,
+            borderColor: "divider",
+            bgcolor: isDark ? "#1c1c20" : "#f4f4f5",
             "& .MuiToggleButton-root": {
-              borderRadius: "10px !important",
-              border: "1px solid",
-              borderColor: isDark
-                ? "rgba(255,255,255,0.12) !important"
-                : "rgba(0,0,0,0.12) !important",
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.8rem",
-              px: 2,
+              border: "0 !important",
+              borderRadius: "8px !important",
+              m: "0 !important",
+              px: 1.75,
               py: 0.6,
+              fontSize: "0.8125rem",
+              whiteSpace: "nowrap",
+              color: "text.secondary",
+              gap: 0.75,
+              "& svg": { fontSize: 16 },
+              "&:hover": { bgcolor: "action.hover", color: "text.primary" },
               "&.Mui-selected": {
-                bgcolor: "primary.main",
-                color: "#fff",
-                borderColor: "primary.main !important",
-                "&:hover": { bgcolor: "primary.dark" },
+                bgcolor: "background.paper",
+                color: "primary.main",
+                boxShadow: 2,
+                "&:hover": { bgcolor: "background.paper" },
               },
             },
           }}
         >
           {PERIOD_OPTIONS.map((opt) => (
             <ToggleButton key={opt.value} value={opt.value}>
-              {!isMobile && (
-                <Box sx={{ mr: 0.5, display: "flex" }}>{opt.icon}</Box>
-              )}
+              {!isMobile && opt.icon}
               {opt.label}
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
-      </Paper>
+      </Box>
 
-      {loading && <LinearProgress sx={{ mb: 2, borderRadius: 2 }} />}
+      {loading && <LinearProgress sx={{ mb: 2 }} />}
 
       {error && (
         <Alert
           severity="error"
-          sx={{ mb: 3, borderRadius: 2 }}
+          sx={{ mb: 3 }}
           action={
             <Button
               color="inherit"
@@ -621,124 +503,146 @@ const Dashboard = () => {
 
       {/* ─── Today Summary Banner ─── */}
       {todaySummary && !loading && (
-        <Paper
-          elevation={0}
+        <Box
           sx={{
-            p: 2,
+            p: { xs: 2, sm: 2.5 },
             mb: 3,
-            borderRadius: 3,
-            background: isDark
-              ? "linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.10))"
-              : "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.05))",
-            border: "1px solid",
-            borderColor: isDark
-              ? "rgba(59,130,246,0.2)"
-              : "rgba(59,130,246,0.15)",
+            borderRadius: 4,
+            color: "#fff",
+            background: BRAND_GRADIENT,
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 16px 40px -16px rgba(99,102,241,0.6)",
             display: "flex",
-            alignItems: "center",
-            gap: 3,
-            flexWrap: "wrap",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { xs: "stretch", md: "center" },
+            gap: { xs: 2, md: 3 },
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(circle at 85% -20%, rgba(255,255,255,0.28), transparent 45%), radial-gradient(circle at 0% 120%, rgba(255,255,255,0.12), transparent 40%)",
+              pointerEvents: "none",
+            },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Today sx={{ color: "#3b82f6" }} />
-            <Typography
-              variant="subtitle2"
-              sx={{ fontWeight: 700, color: "text.primary" }}
-            >
-              Today's Summary
-            </Typography>
-          </Box>
-          <Divider orientation="vertical" flexItem />
-          {[
-            { label: "Total", val: todaySummary.total, color: "#3b82f6" },
-            { label: "Pending", val: todaySummary.pending, color: "#f59e0b" },
-            { label: "Approved", val: todaySummary.approved, color: "#22c55e" },
-            { label: "Rejected", val: todaySummary.rejected, color: "#ef4444" },
-          ].map((s) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 190, position: "relative", zIndex: 1 }}>
             <Box
-              key={s.label}
-              sx={{ display: "flex", alignItems: "center", gap: 0.8 }}
+              sx={{
+                width: 42,
+                height: 42,
+                borderRadius: 2.5,
+                display: "grid",
+                placeItems: "center",
+                bgcolor: "rgba(255,255,255,0.18)",
+                border: "1px solid rgba(255,255,255,0.25)",
+              }}
             >
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  bgcolor: s.color,
-                }}
-              />
-              <Typography
-                variant="caption"
-                sx={{ fontWeight: 500, color: "text.secondary" }}
-              >
-                {s.label}:
-              </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                {s.val ?? 0}
+              <Today />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 700, lineHeight: 1.2 }}>Today's Summary</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                Live snapshot of today's requests
               </Typography>
             </Box>
-          ))}
-        </Paper>
-      )}
-
-      {/* ─── All Stat Cards (6 in one row) ─── */}
-      <Grid container spacing={1} sx={{ mb: 3 }}>
-        {loading
-          ? renderSkeletons(6)
-          : allStats.map((card, i) => (
-              <Grid
-                item
-                key={i}
+          </Box>
+          <Box
+            sx={{
+              flex: 1,
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
+              gap: 1.5,
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            {[
+              { label: "Total", val: todaySummary.total, color: "#c7d2fe" },
+              { label: "Pending", val: todaySummary.pending, color: "#fcd34d" },
+              { label: "Approved", val: todaySummary.approved, color: "#86efac" },
+              { label: "Rejected", val: todaySummary.rejected, color: "#fca5a5" },
+            ].map((s) => (
+              <Box
+                key={s.label}
                 sx={{
-                  width: {
-                    xs: "100%",
-                    sm: "calc(50% - 8px)",
-                    md: "calc(16.666% - 9px)",
-                  },
-                  flexBasis: {
-                    xs: "100%",
-                    sm: "calc(50% - 8px)",
-                    md: "calc(16.666% - 9px)",
-                  },
-                  flexGrow: 0,
-                  flexShrink: 0,
+                  px: 2,
+                  py: 1.25,
+                  borderRadius: 2.5,
+                  bgcolor: "rgba(255,255,255,0.12)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  backdropFilter: "blur(6px)",
                 }}
               >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: s.color }} />
+                  <Typography variant="caption" sx={{ fontWeight: 500, opacity: 0.9 }}>
+                    {s.label}
+                  </Typography>
+                </Box>
+                <Typography sx={{ fontWeight: 800, fontSize: "1.5rem", lineHeight: 1.2, mt: 0.25 }}>
+                  {s.val ?? 0}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {/* ─── Stat Cards ─── */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {loading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <Grid key={i} size={{ xs: 6, md: 4, lg: 2 }}>
+                <Card sx={{ p: 2.5 }}>
+                  <Skeleton variant="text" width="60%" height={20} />
+                  <Skeleton variant="text" width="40%" height={48} sx={{ mt: 1 }} />
+                  <Skeleton variant="text" width="80%" height={16} />
+                </Card>
+              </Grid>
+            ))
+          : allStats.map((card) => (
+              <Grid key={card.title} size={{ xs: 6, md: 4, lg: 2 }}>
                 <StatCard {...card} />
               </Grid>
             ))}
       </Grid>
 
-      {/* ─── All Charts in Single Row ─── */}
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
+      {/* ─── Charts ─── */}
+      <Grid container spacing={2}>
         {/* Monthly Trend */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, lg: 8 }}>
           {loading ? (
-            <Skeleton variant="rounded" height={420} sx={{ borderRadius: 3 }} />
+            <Skeleton variant="rounded" height={380} sx={{ borderRadius: 3 }} />
           ) : (
             <ChartCard
               title="Monthly Trend"
               description={graphs.monthlyVisitorTrend?.description}
-              icon={<BarChart fontSize="small" />}
+              icon={<BarChart />}
               iconColor="#8b5cf6"
-              height={350}
+              height={300}
+              legend={[
+                { label: "Approved", color: colors.approved },
+                { label: "Pending", color: colors.pending },
+                { label: "Rejected", color: colors.rejected },
+              ]}
             >
               {monthlyTrendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsBarChart
                     data={monthlyTrendData}
-                    margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+                    margin={{ top: 8, right: 8, left: -18, bottom: 0 }}
+                    barGap={2}
+                    barCategoryGap="22%"
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <CartesianGrid vertical={false} stroke={gridStroke} />
                     <XAxis
                       dataKey="month"
                       tick={chartAxisStyle}
                       tickLine={false}
-                      axisLine={false}
-                      angle={-20}
-                      textAnchor="end"
-                      height={40}
+                      axisLine={{ stroke: gridStroke }}
+                      tickMargin={8}
                     />
                     <YAxis
                       tick={chartAxisStyle}
@@ -746,211 +650,137 @@ const Dashboard = () => {
                       axisLine={false}
                       allowDecimals={false}
                     />
-                    <RechartsTooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 9 }} />
-                    <Bar
-                      dataKey="Approved"
-                      fill={CHART_COLORS.approved}
-                      radius={[3, 3, 0, 0]}
-                      barSize={16}
-                    />
-                    <Bar
-                      dataKey="Pending"
-                      fill={CHART_COLORS.pending}
-                      radius={[3, 3, 0, 0]}
-                      barSize={16}
-                    />
-                    <Bar
-                      dataKey="Rejected"
-                      fill={CHART_COLORS.rejected}
-                      radius={[3, 3, 0, 0]}
-                      barSize={16}
-                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: cursorFill }} />
+                    <Bar dataKey="Approved" fill={colors.approved} radius={[4, 4, 0, 0]} maxBarSize={14} />
+                    <Bar dataKey="Pending" fill={colors.pending} radius={[4, 4, 0, 0]} maxBarSize={14} />
+                    <Bar dataKey="Rejected" fill={colors.rejected} radius={[4, 4, 0, 0]} maxBarSize={14} />
                   </RechartsBarChart>
                 </ResponsiveContainer>
               ) : (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height: "100%",
-                  }}
-                >
-                  <Typography color="text.disabled">No monthly data</Typography>
-                </Box>
+                <EmptyChart text="No monthly data" />
               )}
             </ChartCard>
           )}
         </Grid>
 
-        {/* By Department + By Day of Week (Stacked) */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Grid container spacing={2} direction="column">
-            {/* By Department - Top */}
-            <Grid item xs={12}>
-              {loading ? (
-                <Skeleton
-                  variant="rounded"
-                  height={165}
-                  sx={{ borderRadius: 3 }}
-                />
-              ) : (
-                <ChartCard
-                  title="By Department"
-                  description={graphs.departmentWiseVisitors?.description}
-                  icon={<Business fontSize="small" />}
-                  iconColor="#ec4899"
-                  height={165}
-                >
-                  {departmentData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={departmentData}
-                        layout="vertical"
-                        margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                          horizontal={false}
-                        />
-                        <XAxis
-                          type="number"
-                          tick={chartAxisStyle}
-                          tickLine={false}
-                          axisLine={false}
-                          allowDecimals={false}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="name"
-                          tick={{ ...chartAxisStyle, fontSize: 10 }}
-                          tickLine={false}
-                          axisLine={false}
-                          width={70}
-                        />
-                        <RechartsTooltip content={<CustomTooltip />} />
-                        <Bar
-                          dataKey="visitors"
-                          fill="#ec4899"
-                          radius={[0, 6, 6, 0]}
-                          barSize={14}
-                        />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Typography color="text.disabled">
-                        No department data
-                      </Typography>
-                    </Box>
-                  )}
-                </ChartCard>
-              )}
-            </Grid>
-
-            {/* By Day of Week - Bottom */}
-            <Grid item xs={12}>
-              {loading ? (
-                <Skeleton
-                  variant="rounded"
-                  height={165}
-                  sx={{ borderRadius: 3 }}
-                />
-              ) : (
-                <ChartCard
-                  title="By Day of Week"
-                  description={graphs.dayOfWeekDistribution?.description}
-                  icon={<Schedule fontSize="small" />}
-                  iconColor="#f59e0b"
-                  height={165}
-                >
-                  {dayOfWeekData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={dayOfWeekData}
-                        margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                        />
-                        <XAxis
-                          dataKey="day"
-                          tick={chartAxisStyle}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          tick={chartAxisStyle}
-                          tickLine={false}
-                          axisLine={false}
-                          allowDecimals={false}
-                        />
-                        <RechartsTooltip content={<CustomTooltip />} />
-                        <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={20}>
-                          {dayOfWeekData.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={PIE_COLORS[i % PIE_COLORS.length]}
-                            />
-                          ))}
-                        </Bar>
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Typography color="text.disabled">No data</Typography>
-                    </Box>
-                  )}
-                </ChartCard>
-              )}
-            </Grid>
-          </Grid>
-        </Grid>
-
         {/* By Office */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, lg: 4 }}>
           {loading ? (
-            <Skeleton variant="rounded" height={420} sx={{ borderRadius: 3 }} />
+            <Skeleton variant="rounded" height={380} sx={{ borderRadius: 3 }} />
           ) : (
             <ChartCard
               title="By Office"
               description={graphs.officeWiseVisitors?.description}
-              icon={<MeetingRoom fontSize="small" />}
+              icon={<MeetingRoomOutlined />}
               iconColor="#3b82f6"
-              height={350}
+              height={300}
             >
               {officeData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsBarChart
                     data={officeData}
-                    margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
+                    layout="vertical"
+                    margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <CartesianGrid horizontal={false} stroke={gridStroke} />
                     <XAxis
-                      dataKey="name"
-                      tick={{ ...chartAxisStyle, fontSize: 10 }}
+                      type="number"
+                      tick={chartAxisStyle}
                       tickLine={false}
                       axisLine={false}
-                      angle={-20}
-                      textAnchor="end"
-                      height={40}
+                      allowDecimals={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={chartAxisStyle}
+                      tickFormatter={truncateLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      width={110}
+                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: cursorFill }} />
+                    <Bar dataKey="visitors" fill={colors.series} radius={[0, 4, 4, 0]} maxBarSize={22} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart text="No office data" />
+              )}
+            </ChartCard>
+          )}
+        </Grid>
+
+        {/* By Department */}
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          {loading ? (
+            <Skeleton variant="rounded" height={290} sx={{ borderRadius: 3 }} />
+          ) : (
+            <ChartCard
+              title="By Department"
+              description={graphs.departmentWiseVisitors?.description}
+              icon={<BusinessOutlined />}
+              iconColor="#ec4899"
+              height={smallChartHeight}
+            >
+              {departmentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart
+                    data={departmentData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid horizontal={false} stroke={gridStroke} />
+                    <XAxis
+                      type="number"
+                      tick={chartAxisStyle}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={chartAxisStyle}
+                      tickFormatter={truncateLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      width={80}
+                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: cursorFill }} />
+                    <Bar dataKey="visitors" fill={colors.series} radius={[0, 4, 4, 0]} maxBarSize={18} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart text="No department data" />
+              )}
+            </ChartCard>
+          )}
+        </Grid>
+
+        {/* By Day of Week */}
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          {loading ? (
+            <Skeleton variant="rounded" height={290} sx={{ borderRadius: 3 }} />
+          ) : (
+            <ChartCard
+              title="By Day of Week"
+              description={graphs.dayOfWeekDistribution?.description}
+              icon={<Schedule />}
+              iconColor="#f59e0b"
+              height={smallChartHeight}
+            >
+              {dayOfWeekData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart
+                    data={dayOfWeekData}
+                    margin={{ top: 8, right: 8, left: -18, bottom: 0 }}
+                  >
+                    <CartesianGrid vertical={false} stroke={gridStroke} />
+                    <XAxis
+                      dataKey="day"
+                      tick={chartAxisStyle}
+                      tickLine={false}
+                      axisLine={{ stroke: gridStroke }}
                     />
                     <YAxis
                       tick={chartAxisStyle}
@@ -958,172 +788,114 @@ const Dashboard = () => {
                       axisLine={false}
                       allowDecimals={false}
                     />
-                    <RechartsTooltip content={<CustomTooltip />} />
-                    <Bar
-                      dataKey="visitors"
-                      fill="#3b82f6"
-                      radius={[6, 6, 0, 0]}
-                      barSize={28}
-                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: cursorFill }} />
+                    <Bar dataKey="count" fill={colors.series} radius={[4, 4, 0, 0]} maxBarSize={22} />
                   </RechartsBarChart>
                 </ResponsiveContainer>
               ) : (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height: "100%",
-                  }}
-                >
-                  <Typography color="text.disabled">No office data</Typography>
-                </Box>
+                <EmptyChart text="No data" />
               )}
             </ChartCard>
           )}
         </Grid>
 
-        {/* Avg Duration + Guest House (Stacked) */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Grid container spacing={2} direction="column">
-            {/* Avg Visit Duration - Top */}
-            <Grid item xs={12}>
-              {loading ? (
-                <Skeleton
-                  variant="rounded"
-                  height={165}
-                  sx={{ borderRadius: 3 }}
-                />
+        {/* Avg Visit Duration */}
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          {loading ? (
+            <Skeleton variant="rounded" height={290} sx={{ borderRadius: 3 }} />
+          ) : (
+            <ChartCard
+              title="Avg Visit Duration"
+              description={graphs.avgVisitDuration?.description}
+              icon={<AccessTime />}
+              iconColor="#8b5cf6"
+              height={smallChartHeight}
+            >
+              {avgDurationData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart
+                    data={avgDurationData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid horizontal={false} stroke={gridStroke} />
+                    <XAxis
+                      type="number"
+                      tick={chartAxisStyle}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="department"
+                      tick={chartAxisStyle}
+                      tickFormatter={truncateLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      width={80}
+                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: cursorFill }} />
+                    <Bar
+                      dataKey="days"
+                      name="Avg Days"
+                      fill={colors.series}
+                      radius={[0, 4, 4, 0]}
+                      maxBarSize={18}
+                    />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
               ) : (
-                <ChartCard
-                  title="Avg Visit Duration"
-                  description={graphs.avgVisitDuration?.description}
-                  icon={<AccessTime fontSize="small" />}
-                  iconColor="#8b5cf6"
-                  height={165}
-                >
-                  {avgDurationData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={avgDurationData}
-                        layout="vertical"
-                        margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                          horizontal={false}
-                        />
-                        <XAxis
-                          type="number"
-                          tick={chartAxisStyle}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          type="category"
-                          dataKey="department"
-                          tick={{ ...chartAxisStyle, fontSize: 10 }}
-                          tickLine={false}
-                          axisLine={false}
-                          width={70}
-                        />
-                        <RechartsTooltip content={<CustomTooltip />} />
-                        <Bar
-                          dataKey="days"
-                          name="Avg Days"
-                          fill="#8b5cf6"
-                          radius={[0, 6, 6, 0]}
-                          barSize={14}
-                        />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Typography color="text.disabled">
-                        No duration data
-                      </Typography>
-                    </Box>
-                  )}
-                </ChartCard>
+                <EmptyChart text="No duration data" />
               )}
-            </Grid>
+            </ChartCard>
+          )}
+        </Grid>
 
-            {/* Guest House Utilization - Bottom */}
-            <Grid item xs={12}>
-              {loading ? (
-                <Skeleton
-                  variant="rounded"
-                  height={165}
-                  sx={{ borderRadius: 3 }}
-                />
+        {/* Guest House Utilization */}
+        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+          {loading ? (
+            <Skeleton variant="rounded" height={290} sx={{ borderRadius: 3 }} />
+          ) : (
+            <ChartCard
+              title="Guest House Utilization"
+              description={graphs.guestHouseUtilization?.description}
+              icon={<HotelOutlined />}
+              iconColor="#22c55e"
+              height={smallChartHeight}
+            >
+              {guestHouseData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsBarChart
+                    data={guestHouseData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid horizontal={false} stroke={gridStroke} />
+                    <XAxis
+                      type="number"
+                      tick={chartAxisStyle}
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={chartAxisStyle}
+                      tickFormatter={truncateLabel}
+                      tickLine={false}
+                      axisLine={false}
+                      width={100}
+                    />
+                    <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: cursorFill }} />
+                    <Bar dataKey="bookings" fill={colors.series} radius={[0, 4, 4, 0]} maxBarSize={18} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
               ) : (
-                <ChartCard
-                  title="Guest House Utilization"
-                  description={graphs.guestHouseUtilization?.description}
-                  icon={<Hotel fontSize="small" />}
-                  iconColor="#22c55e"
-                  height={165}
-                >
-                  {guestHouseData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart
-                        data={guestHouseData}
-                        margin={{ top: 5, right: 10, left: -10, bottom: 20 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={gridStroke}
-                        />
-                        <XAxis
-                          dataKey="name"
-                          tick={{ ...chartAxisStyle, fontSize: 9 }}
-                          tickLine={false}
-                          axisLine={false}
-                          angle={-20}
-                          textAnchor="end"
-                          height={35}
-                        />
-                        <YAxis
-                          tick={chartAxisStyle}
-                          tickLine={false}
-                          axisLine={false}
-                          allowDecimals={false}
-                        />
-                        <RechartsTooltip content={<CustomTooltip />} />
-                        <Bar
-                          dataKey="bookings"
-                          fill="#22c55e"
-                          radius={[6, 6, 0, 0]}
-                          barSize={20}
-                        />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                      }}
-                    >
-                      <Typography color="text.disabled">
-                        No guest house data
-                      </Typography>
-                    </Box>
-                  )}
-                </ChartCard>
+                <EmptyChart text="No guest house data" />
               )}
-            </Grid>
-          </Grid>
+            </ChartCard>
+          )}
         </Grid>
       </Grid>
     </MiniDrawer>

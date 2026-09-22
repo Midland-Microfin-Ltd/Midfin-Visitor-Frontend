@@ -24,6 +24,7 @@ import {
   IconButton,
   Stack,
   Divider,
+  Chip,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -32,10 +33,11 @@ import {
   Phone as PhoneIcon,
   Close as CloseIcon,
   CheckCircle as CheckCircleIcon,
+  QrCode2 as QrCode2Icon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import MiniDrawer from "../../components/MiniDrawer";
-import { useThemeContext } from "../../context/ThemeContext";
+import { PageHeader, SearchField, EmptyState, BRAND_GRADIENT } from "../../components/ui";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import {
   getVisitorRequests,
@@ -58,7 +60,6 @@ const getBaseUrl = () => {
 };
 
 const GeneratePass = () => {
-  const { mode } = useThemeContext();
   const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -180,222 +181,214 @@ const GeneratePass = () => {
     );
   });
 
+  const gradientButtonSx = {
+    background: BRAND_GRADIENT,
+    color: "#fff",
+    boxShadow: "0 6px 16px -6px rgba(99,102,241,0.65)",
+    "&:hover": { background: BRAND_GRADIENT, filter: "brightness(1.08)", boxShadow: "0 8px 20px -6px rgba(99,102,241,0.75)" },
+  };
+
   return (
     <MiniDrawer>
-      <Box sx={{ mb: 4 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 3,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" gutterBottom color="text.primary">
-              Generate Visitor QR Code
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Generate QR codes for approved visitors to check their status
-            </Typography>
-          </Box>
-        </Box>
+      <PageHeader
+        icon={<QrCode2Icon />}
+        title="Generate Visitor QR Code"
+        subtitle="Generate QR codes for approved visitors to check their status"
+      />
 
-        <TextField
-          fullWidth
+      <Box sx={{ mb: 2.5 }}>
+        <SearchField
           placeholder="Search visitors..."
-          variant="outlined"
-          size="small"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ mb: 3, maxWidth: 400 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
         />
       </Box>
 
-      {loading ? (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          minHeight={400}
-        >
-          <CircularProgress />
-        </Box>
-      ) : (
-        <Paper sx={{ width: "100%", overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: 500 }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Visitor</TableCell>
-                  <TableCell>Contact</TableCell>
-                  <TableCell>Visit Details</TableCell>
-                  <TableCell align="center">Generate QR Code</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredVisitors.length === 0 ? (
+      <Paper sx={{ width: "100%", overflow: "hidden" }}>
+        {loading ? (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.5,
+              minHeight: 400,
+            }}
+          >
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary">
+              Loading approved visitors…
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <TableContainer sx={{ maxHeight: { xs: 560, md: "calc(100vh - 290px)" }, minHeight: 240 }}>
+              <Table stickyHeader>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        {searchQuery
-                          ? "No approved visitors match your search"
-                          : "No approved visitors found"}
-                      </Typography>
-                    </TableCell>
+                    <TableCell>Visitor</TableCell>
+                    <TableCell>Contact</TableCell>
+                    <TableCell>Visit Details</TableCell>
+                    <TableCell align="center">Generate QR Code</TableCell>
                   </TableRow>
-                ) : (
-                  filteredVisitors.map((visitor) => (
-                    <TableRow key={visitor.visitorId} hover>
-                      <TableCell>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Avatar
-                            sx={{
-                              bgcolor: mode === "dark" ? "#4f46e5" : "#4338ca",
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {getInitials(visitor.visitorName)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight="medium">
-                              {visitor.visitorName}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              display="block"
-                            >
-                              ID: {visitor.visitorId}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 0.5,
-                          }}
-                        >
-                          <PhoneIcon fontSize="small" />
-                          {visitor.phoneNo || "N/A"}
-                        </Typography>
-                        <Typography variant="body2" sx={{ mt: 0.5 }}>
-                          Type: {visitor.visitorType}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          Meeting: {visitor.personToMeet}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                        >
-                          Department: {visitor.departmentToVisit}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                        >
-                          Purpose: {visitor.purposeOfVisit}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="center">
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          startIcon={<QrCodeIcon />}
-                          onClick={() => handleGenerateQRCode(visitor)}
-                          sx={{
-                            background:
-                              "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                            "&:hover": {
-                              background:
-                                "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
-                            },
-                          }}
-                        >
-                          Generate QR
-                        </Button>
+                </TableHead>
+                <TableBody>
+                  {filteredVisitors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4}>
+                        <EmptyState
+                          icon={<QrCodeIcon />}
+                          title={
+                            searchQuery
+                              ? "No approved visitors match your search"
+                              : "No approved visitors found"
+                          }
+                        />
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={totalRecords}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Visitors per page:"
-          />
-        </Paper>
-      )}
+                  ) : (
+                    filteredVisitors.map((visitor) => (
+                      <TableRow key={visitor.visitorId} hover>
+                        <TableCell sx={{ minWidth: 220 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                            <Avatar
+                              sx={{
+                                width: 40,
+                                height: 40,
+                                color: "#fff",
+                                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                              }}
+                            >
+                              {getInitials(visitor.visitorName)}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                                {visitor.visitorName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                ID:{" "}
+                                <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>
+                                  {visitor.visitorId}
+                                </Box>
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 160 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ display: "flex", alignItems: "center", gap: 0.75, fontWeight: 500 }}
+                          >
+                            <PhoneIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                            {visitor.phoneNo || "N/A"}
+                          </Typography>
+                          {visitor.visitorType && (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={visitor.visitorType}
+                              sx={{ mt: 1, textTransform: "capitalize" }}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            Meeting: {visitor.personToMeet}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Department: {visitor.departmentToVisit}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Purpose: {visitor.purposeOfVisit}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Button
+                            variant="contained"
+                            startIcon={<QrCodeIcon />}
+                            onClick={() => handleGenerateQRCode(visitor)}
+                            sx={gradientButtonSx}
+                          >
+                            Generate QR
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={totalRecords}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Visitors per page:"
+            />
+          </>
+        )}
+      </Paper>
 
       {/* Dialog with QR Code */}
       <Dialog
         open={qrDialog}
         onClose={closeQRDialog}
         maxWidth="xs"
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            overflow: "hidden",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-          },
-        }}
+        fullWidth
       >
         <DialogContent
           sx={{
-            p: 4,
+            p: { xs: 3, sm: 4 },
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            background: "white",
           }}
         >
           {selectedVisitor && (
             <>
+              <Box sx={{ textAlign: "center", mb: 2.5 }}>
+                <Chip
+                  size="small"
+                  color="success"
+                  icon={<CheckCircleIcon />}
+                  label="Approved visitor"
+                  sx={{ mb: 1.5 }}
+                />
+                <Typography sx={{ fontWeight: 700, fontSize: "1.15rem", lineHeight: 1.3 }}>
+                  {selectedVisitor.visitorName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  ID: {selectedVisitor.visitorId}
+                </Typography>
+              </Box>
+
               {/* QR Code */}
               <Box
                 sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  mb: 3,
-                  p: 3,
-                  background: "white",
-                  borderRadius: 2,
-                  border: "2px solid #f0f0f0",
+                  p: "3px",
+                  mb: 1.5,
+                  borderRadius: 4,
+                  background: BRAND_GRADIENT,
+                  boxShadow: "0 16px 40px -16px rgba(99,102,241,0.6)",
                 }}
               >
-                <QRCodeSVG
-                  value={`${getBaseUrl()}#/statuspass?id=${selectedVisitor.visitorId}`}
-                  size={240}
-                  level="H"
-                  includeMargin={true}
-                />
+                <Box sx={{ p: 1.5, bgcolor: "#fff", borderRadius: "13px", display: "flex" }}>
+                  <QRCodeSVG
+                    value={`${getBaseUrl()}#/statuspass?id=${selectedVisitor.visitorId}`}
+                    size={220}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </Box>
               </Box>
-              
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 3 }}>
+                Scan to check the visitor's pass status
+              </Typography>
+
               {/* Hidden canvas for download */}
               <Box ref={qrCodeRef} sx={{ display: "none" }}>
                 <QRCodeCanvas
@@ -407,23 +400,13 @@ const GeneratePass = () => {
               </Box>
 
               {/* Action Buttons */}
-              <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
+              <Stack direction="row" spacing={1.5} sx={{ width: "100%" }}>
                 <Button
                   onClick={closeQRDialog}
                   variant="outlined"
+                  color="inherit"
                   fullWidth
-                  sx={{
-                    borderRadius: 2,
-                    py: 1.2,
-                    borderColor: "#bdc3c7",
-                    color: "#2c3e50",
-                    fontWeight: "medium",
-                    "&:hover": {
-                      borderColor: "#95a5a6",
-                      backgroundColor: "rgba(189, 195, 199, 0.1)",
-                    },
-                    transition: "all 0.3s ease",
-                  }}
+                  sx={{ py: 1, borderColor: "divider" }}
                 >
                   Close
                 </Button>
@@ -432,19 +415,7 @@ const GeneratePass = () => {
                   fullWidth
                   startIcon={<DownloadIcon />}
                   onClick={handleDownloadQRCode}
-                  sx={{
-                    borderRadius: 2,
-                    py: 1.2,
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    fontWeight: "medium",
-                    boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
-                    "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
-                      boxShadow: "0 6px 16px rgba(102, 126, 234, 0.4)",
-                    },
-                    transition: "all 0.3s ease",
-                  }}
+                  sx={{ py: 1, ...gradientButtonSx }}
                 >
                   Download
                 </Button>
@@ -462,7 +433,7 @@ const GeneratePass = () => {
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", boxShadow: 8 }}
         >
           {snackbar.message}
         </Alert>
