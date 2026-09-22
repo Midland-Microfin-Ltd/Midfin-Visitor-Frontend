@@ -218,7 +218,7 @@ const Login = () => {
         <Box sx={{ position: "relative", zIndex: 1 }}>
           <Grid container spacing={2} justifyContent="center" alignItems="center">
             {/* Left Side - Branding */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Fade in={true} timeout={800}>
                 <Card
                   sx={{
@@ -280,7 +280,7 @@ const Login = () => {
             </Grid>
 
             {/* Right Side - Login Form */}
-            <Grid item xs={12} md={7}>
+            <Grid size={{ xs: 12, md: 7 }}>
               <Zoom in={true} timeout={800}>
                 <Paper
                   elevation={6}

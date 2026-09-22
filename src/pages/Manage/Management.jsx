@@ -34,7 +34,9 @@ import {
   Avatar,
   Collapse,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
+  ManageAccounts as ManageAccountsIcon,
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -47,16 +49,22 @@ import {
   Error as ErrorIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  VpnKey as VpnKeyIcon,
+  ContentCopy as ContentCopyIcon,
 } from "@mui/icons-material";
 import MiniDrawer from "../../components/MiniDrawer";
-import { useThemeContext } from "../../context/ThemeContext";
+import { PageHeader, SearchField, segmentedTabsSx, StatCard, EmptyState, BRAND_GRADIENT } from "../../components/ui";
 import {
   getBuildings,
   updateBuilding,
+  generateGuardPin,
+  getGuardPinStatus,
 } from "../../utilities/apiUtils/apiHelper";
 
+// The one fixed link shared with every guard; the guard picks the office on the PIN screen.
+const GUARD_LINK = `${window.location.origin}/#/guard`;
+
 const Management = () => {
-  const { mode } = useThemeContext();
   const [selectedTab, setSelectedTab] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogType, setDialogType] = useState(null);
@@ -103,13 +111,13 @@ const Management = () => {
     {
       label: "Guest Houses",
       icon: <HomeIcon />,
-      color: "#48BB78",
+      color: "#10b981",
       buildingType: "guestHouses",
     },
     {
       label: "Offices",
       icon: <LocationIcon />,
-      color: "#F56565",
+      color: "#3b82f6",
       buildingType: "offices",
     },
   ];
@@ -169,6 +177,41 @@ const Management = () => {
       fetchBuildingsData();
     }
   }, [selectedTab]);
+
+  // Guard PIN per office: { office, pin?, loading?, error? }. The PIN lives only in this dialog's state.
+  const [pinDialog, setPinDialog] = useState(null);
+  const [pinActiveSince, setPinActiveSince] = useState({});
+
+  useEffect(() => {
+    getGuardPinStatus()
+      .then((res) =>
+        setPinActiveSince(Object.fromEntries(res.data.map((o) => [o.officeId, o.isActive ? o.createdAt : null])))
+      )
+      .catch(() => {});
+  }, []);
+
+  const handleGeneratePin = async () => {
+    setPinDialog((d) => ({ ...d, loading: true, error: "" }));
+    try {
+      const res = await generateGuardPin(pinDialog.office.id);
+      setPinDialog((d) => ({ ...d, loading: false, pin: res.data.pin }));
+      setPinActiveSince((s) => ({ ...s, [res.data.officeId]: res.data.createdAt }));
+    } catch (error) {
+      setPinDialog((d) => ({ ...d, loading: false, error: error?.errorDescription || "Could not generate a PIN." }));
+    }
+  };
+
+  const copyPin = () =>
+    navigator.clipboard
+      ?.writeText(pinDialog.pin)
+      .then(() => showSnackbar("PIN copied", "success"))
+      .catch(() => showSnackbar("Copy failed. Note the PIN down before closing.", "warning"));
+
+  const copyGuardLink = () =>
+    navigator.clipboard
+      ?.writeText(GUARD_LINK)
+      .then(() => showSnackbar("Guard link copied", "success"))
+      .catch(() => showSnackbar("Copy failed", "warning"));
 
   const handleTabChange = (event, newValue) => {
     setSelectedTab(newValue);
@@ -413,227 +456,141 @@ const Management = () => {
 
   const renderTable = () => {
     const data = paginatedData;
+    const isGuestHouse = selectedTab === 0;
 
-    switch (selectedTab) {
-      case 0: // Guest Houses (from API)
-        return (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Guest House</TableCell>
-                  <TableCell>Address</TableCell>
-                  <TableCell>Rooms</TableCell>
-                  <TableCell>Created By</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.map((house) => (
-                  <React.Fragment key={house.id}>
-                    <TableRow hover>
-                      <TableCell>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Avatar
-                            sx={{
-                              bgcolor: tabs[selectedTab].color,
-                              width: 40,
-                              height: 40,
-                            }}
-                          >
-                            <HomeIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle2">
-                              {house.name}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              Created:{" "}
-                              {new Date(house.createdAt).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              flex: 1,
-                              whiteSpace: "normal",
-                              wordBreak: "break-word",
-                              maxWidth: 300,
-                            }}
-                          >
-                            {house.address}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={`${house.rooms} rooms`} size="small" />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {house.createdBy}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={house.status}
-                          color={getStatusColor(house.status)}
-                          size="small"
-                          icon={getStatusIcon(house.status)}
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            gap: 1,
-                          }}
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEdit("guestHouse", house.id)}
-                            disabled={true} // Disabled until update API is available
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDelete("guestHouse", house.id)}
-                            disabled={true} // Disabled until delete API is available
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        );
-
-      case 1: // Offices (from API)
-        return (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Office Name</TableCell>
-                  <TableCell>Address</TableCell>
-                  <TableCell>Created By</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.map((office) => (
-                  <React.Fragment key={office.id}>
-                    <TableRow hover>
-                      <TableCell>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Avatar
-                            sx={{
-                              bgcolor: tabs[selectedTab].color,
-                              width: 40,
-                              height: 40,
-                            }}
-                          >
-                            <LocationIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle2">
-                              {office.name}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              Created:{" "}
-                              {new Date(office.createdAt).toLocaleDateString()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              flex: 1,
-                              whiteSpace: "normal",
-                              wordBreak: "break-word",
-                              maxWidth: 300,
-                            }}
-                          >
-                            {office.address}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {office.createdBy}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={office.status}
-                          color={getStatusColor(office.status)}
-                          size="small"
-                          icon={getStatusIcon(office.status)}
-                        />
-                      </TableCell>
-                      <TableCell align="center">
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            gap: 1,
-                          }}
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEdit("office", office.id)}
-                            disabled={true} // Disabled until update API is available
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDelete("office", office.id)}
-                            disabled={true} // Disabled until delete API is available
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        );
-
-      default:
-        return (
-          <Box sx={{ py: 4, textAlign: "center" }}>
-            <Typography color="text.secondary">No data available</Typography>
-          </Box>
-        );
+    if (selectedTab !== 0 && selectedTab !== 1) {
+      return (
+        <Box sx={{ py: 4, textAlign: "center" }}>
+          <Typography color="text.secondary">No data available</Typography>
+        </Box>
+      );
     }
+
+    const tab = tabs[selectedTab];
+    const type = isGuestHouse ? "guestHouse" : "office";
+
+    return (
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>{isGuestHouse ? "Guest House" : "Office Name"}</TableCell>
+              <TableCell>Address</TableCell>
+              {isGuestHouse && <TableCell>Rooms</TableCell>}
+              <TableCell>Created By</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="center">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={isGuestHouse ? 6 : 5}>
+                  <EmptyState
+                    icon={tab.icon}
+                    title={searchQuery ? `No ${tab.label.toLowerCase()} match your search` : `No ${tab.label.toLowerCase()} yet`}
+                    description={searchQuery ? "Try a different search term." : `Use “Add ${tab.label.slice(0, -1)}” to create one.`}
+                  />
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((item) => (
+                <TableRow hover key={item.id}>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          flexShrink: 0,
+                          borderRadius: 2.5,
+                          display: "grid",
+                          placeItems: "center",
+                          color: tab.color,
+                          bgcolor: alpha(tab.color, 0.12),
+                          "& svg": { fontSize: 20 },
+                        }}
+                      >
+                        {tab.icon}
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                          {item.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Created: {new Date(item.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, maxWidth: 320 }}>
+                      <LocationIcon sx={{ fontSize: 16, color: "text.secondary", mt: 0.25 }} />
+                      <Typography variant="body2" sx={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                        {item.address}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  {isGuestHouse && (
+                    <TableCell>
+                      <Chip label={`${item.rooms} rooms`} size="small" variant="outlined" />
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Avatar sx={{ width: 26, height: 26, fontSize: "0.7rem", bgcolor: "action.selected", color: "primary.main" }}>
+                        {item.createdBy?.charAt(0)?.toUpperCase()}
+                      </Avatar>
+                      <Typography variant="body2">{item.createdBy}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={item.status}
+                      color={getStatusColor(item.status)}
+                      size="small"
+                      icon={getStatusIcon(item.status)}
+                      sx={{ textTransform: "capitalize" }}
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+                      {!isGuestHouse && (
+                        <Tooltip
+                          title={
+                            pinActiveSince[item.id]
+                              ? `Guard PIN active since ${new Date(pinActiveSince[item.id]).toLocaleString()}`
+                              : "Generate guard PIN"
+                          }
+                        >
+                          <IconButton size="small" color="primary" onClick={() => setPinDialog({ office: item })}>
+                            <VpnKeyIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEdit(type, item.id)}
+                        disabled={true} // Disabled until update API is available
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDelete(type, item.id)}
+                        disabled={true} // Disabled until delete API is available
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
   };
 
   const renderDialogContent = () => {
@@ -709,26 +666,11 @@ const Management = () => {
 
   return (
     <MiniDrawer>
-      <Box sx={{ mb: 4 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 3,
-            flexDirection: { xs: "column", sm: "row" },
-            gap: { xs: 2, sm: 0 },
-          }}
-        >
-          <Box>
-            <Typography variant="h4" gutterBottom color="text.primary">
-              System Management
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Manage all system configurations and settings
-            </Typography>
-          </Box>
-
+      <PageHeader
+        icon={<ManageAccountsIcon />}
+        title="System Management"
+        subtitle="Manage all system configurations and settings"
+        actions={
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -745,162 +687,105 @@ const Management = () => {
               }
             }}
             sx={{
-              backgroundColor: tabs[selectedTab].color,
-              "&:hover": {
-                backgroundColor: tabs[selectedTab].color,
-                opacity: 0.9,
-              },
+              background: BRAND_GRADIENT,
+              boxShadow: "0 8px 20px -8px rgba(99,102,241,0.7)",
+              px: 2.25,
+              height: 40,
+              "&:hover": { background: BRAND_GRADIENT, filter: "brightness(1.08)" },
             }}
           >
             Add {tabs[selectedTab].label.slice(0, -1)}
           </Button>
-        </Box>
+        }
+      />
 
-        {/* Tabs with icons */}
-        <Paper sx={{ mb: 3, borderRadius: 2 }}>
-          <Tabs
-            value={selectedTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
+      {/* Tabs + Search */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        <Tabs
+          value={selectedTab}
+          onChange={handleTabChange}
+          variant="scrollable"
+          scrollButtons={false}
+          sx={segmentedTabsSx}
+        >
+          {tabs.map((tab, index) => (
+            <Tab key={index} icon={tab.icon} iconPosition="start" label={tab.label} />
+          ))}
+        </Tabs>
+
+        <SearchField
+          placeholder={`Search ${tabs[selectedTab].label.toLowerCase()}...`}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </Box>
+
+      {/* Stats Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatCard
+            title={`Total ${tabs[selectedTab].label}`}
+            value={currentStats.total}
+            icon={tabs[selectedTab].icon}
+            color={tabs[selectedTab].color}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatCard title="Active" value={currentStats.active} icon={<CheckCircleIcon />} color="#16a34a" />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <StatCard title="Inactive" value={currentStats.inactive} icon={<ErrorIcon />} color="#ef4444" />
+        </Grid>
+      </Grid>
+
+      {/* Guard link (Offices tab): one fixed link for every guard; the guard picks the office on the PIN screen */}
+      {selectedTab === 1 && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography sx={{ fontWeight: 600 }}>Guard link</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Share this link with the guards. They open it, choose their office and enter that office's PIN. Create a
+            PIN with the key icon on each office below.
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }}>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+              {GUARD_LINK}
+            </Typography>
+            <Button size="small" variant="outlined" startIcon={<ContentCopyIcon />} onClick={copyGuardLink}>
+              Copy link
+            </Button>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Data Table */}
+      <Paper sx={{ width: "100%", overflow: "hidden" }}>
+        {apiLoading && (selectedTab === 0 || selectedTab === 2) ? (
+          <Box
             sx={{
-              "& .MuiTab-root": {
-                minHeight: 64,
-                fontSize: "0.875rem",
-              },
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.5,
+              minHeight: 260,
             }}
           >
-            {tabs.map((tab, index) => (
-              <Tab
-                key={index}
-                icon={tab.icon}
-                iconPosition="start"
-                label={tab.label}
-                sx={{
-                  color: selectedTab === index ? tab.color : "text.secondary",
-                  "&.Mui-selected": {
-                    color: tab.color,
-                  },
-                }}
-              />
-            ))}
-          </Tabs>
-        </Paper>
-
-        {/* Search Bar */}
-        <Box sx={{ mb: 3 }}>
-          <TextField
-            fullWidth
-            placeholder={`Search ${tabs[selectedTab].label.toLowerCase()}...`}
-            variant="outlined"
-            size="small"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ maxWidth: 400 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Box>
-
-        {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card>
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box>
-                    <Typography color="text.secondary" variant="body2">
-                      Total {tabs[selectedTab].label}
-                    </Typography>
-                    <Typography variant="h5" color="text.primary">
-                      {currentStats.total}
-                    </Typography>
-                  </Box>
-                  <Avatar
-                    sx={{
-                      bgcolor: `${tabs[selectedTab].color}20`,
-                      color: tabs[selectedTab].color,
-                    }}
-                  >
-                    {tabs[selectedTab].icon}
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Card>
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box>
-                    <Typography color="text.secondary" variant="body2">
-                      Active
-                    </Typography>
-                    <Typography variant="h5" color="text.primary">
-                      {currentStats.active}
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: "#48BB7820", color: "#48BB78" }}>
-                    <CheckCircleIcon />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Card>
-              <CardContent>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box>
-                    <Typography color="text.secondary" variant="body2">
-                      Inactive
-                    </Typography>
-                    <Typography variant="h5" color="text.primary">
-                      {currentStats.inactive}
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: "#F5656520", color: "#F56565" }}>
-                    <ErrorIcon />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Loading State */}
-        {apiLoading && (selectedTab === 0 || selectedTab === 2) ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary">
+              Loading {tabs[selectedTab].label.toLowerCase()}…
+            </Typography>
           </Box>
         ) : (
-          /* Data Table */
-          <Paper sx={{ width: "100%", overflow: "hidden", borderRadius: 2 }}>
+          <>
             {renderTable()}
 
             <TablePagination
@@ -913,9 +798,9 @@ const Management = () => {
               onRowsPerPageChange={handleChangeRowsPerPage}
               labelRowsPerPage={`${tabs[selectedTab].label} per page:`}
             />
-          </Paper>
+          </>
         )}
-      </Box>
+      </Paper>
 
       {/* Add/Edit Dialog */}
       <Dialog
@@ -924,28 +809,108 @@ const Management = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          {dialogType === "guestHouse"
-            ? "Add New Guest House"
-            : dialogType === "office"
-            ? "Add New Office"
-            : editMode
-            ? "Edit Visitor Type"
-            : "Add New Visitor Type"}
+        <DialogTitle component="div" sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              flexShrink: 0,
+              borderRadius: 2.5,
+              display: "grid",
+              placeItems: "center",
+              color: dialogType === "office" ? tabs[1].color : tabs[0].color,
+              bgcolor: alpha(dialogType === "office" ? tabs[1].color : tabs[0].color, 0.12),
+            }}
+          >
+            {dialogType === "office" ? <LocationIcon /> : <HomeIcon />}
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: "1.05rem" }}>
+              {dialogType === "guestHouse"
+                ? "Add New Guest House"
+                : dialogType === "office"
+                ? "Add New Office"
+                : editMode
+                ? "Edit Visitor Type"
+                : "Add New Visitor Type"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Fill in the details below and save.
+            </Typography>
+          </Box>
         </DialogTitle>
-        <DialogContent>{renderDialogContent()}</DialogContent>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>{renderDialogContent()}</Box>
+        </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} color="inherit">
+          <Button onClick={handleCloseDialog} variant="outlined" color="inherit" sx={{ borderColor: "divider" }}>
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
           >
             {loading ? "Saving..." : "Save"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Guard PIN: shown once, gone when the dialog closes */}
+      <Dialog open={Boolean(pinDialog)} onClose={() => setPinDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Guard PIN · {pinDialog?.office.name}</DialogTitle>
+        <DialogContent>
+          {pinDialog?.pin ? (
+            <>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                This PIN will not be shown again. Copy it now and give it to the guards. Any previous PIN has
+                stopped working.
+              </Alert>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                <Typography sx={{ fontFamily: "monospace", fontSize: "2.2rem", fontWeight: 700, letterSpacing: "0.3em" }}>
+                  {pinDialog.pin}
+                </Typography>
+                <Tooltip title="Copy PIN">
+                  <IconButton onClick={copyPin}>
+                    <ContentCopyIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </>
+          ) : (
+            <Typography variant="body2">
+              {pinDialog && pinActiveSince[pinDialog.office.id]
+                ? `Guards sign in with this PIN once a day. The same PIN works every day. Replace it only if it has leaked: the old one stops working straight away and every guard is signed out.`
+                : "Guards sign in with this PIN once a day. The PIN stays the same every day until you replace it."}
+            </Typography>
+          )}
+          {pinDialog?.error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {pinDialog.error}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {pinDialog?.pin ? (
+            <Button variant="contained" onClick={() => setPinDialog(null)}>
+              Done
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => setPinDialog(null)} color="inherit">
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleGeneratePin}
+                disabled={pinDialog?.loading}
+                startIcon={pinDialog?.loading ? <CircularProgress size={18} color="inherit" /> : <VpnKeyIcon />}
+              >
+                {pinDialog && pinActiveSince[pinDialog.office.id] ? "Replace PIN" : "Generate PIN"}
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -959,7 +924,7 @@ const Management = () => {
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", boxShadow: 8 }}
         >
           {snackbar.message}
         </Alert>

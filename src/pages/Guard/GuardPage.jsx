@@ -69,7 +69,8 @@ const expectedLabel = (value) => {
 };
 const errorText = (err) => err?.errorDescription || "Something went wrong. Please try again.";
 
-// A session is only good on the IST day it was issued for; the server enforces the same.
+// A session is only good on the IST day it was issued for (the server enforces the same); the PIN stays the
+// same every day until an admin replaces it, which also ends the session.
 const loadSession = () => {
   try {
     const session = retrieveObjectFromLocalStorage(SESSION_KEY);
@@ -130,7 +131,7 @@ function PinScreen({ onLogin, notice }) {
                 Gate checkout
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Choose your office and enter today's PIN
+                Choose your office and enter the PIN
               </Typography>
             </Box>
           </Stack>
@@ -487,7 +488,7 @@ export default function GuardPage() {
     setNotice(message);
     setSession(null);
   }, []);
-  const expired = useCallback(() => logout("Your session has ended. Enter today's PIN again."), [logout]);
+  const expired = useCallback(() => logout("Your session has ended. Sign in again with your office PIN."), [logout]);
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", color: "text.primary" }}>
