@@ -29,34 +29,34 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  background: #d4d4d8;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-track {
-  background: #2D3748;
+  background: #a1a1aa;
+  background-clip: content-box;
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: #4A5568;
+  background: #3f3f46;
+  background-clip: content-box;
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: #718096;
+  background: #52525b;
+  background-clip: content-box;
 }
 
 /* Signature Canvas Styles */
@@ -69,15 +69,6 @@ body {
 
 .signature-canvas:active {
   cursor: crosshair;
-}
-
-/* Form Focus Styles */
-.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: #667eea !important;
-}
-
-.MuiInputLabel-root.Mui-focused {
-  color: #667eea !important;
 }
 
 /* Gradient Text */
@@ -124,4 +115,17 @@ body {
 .file-upload-zone:hover {
   border-color: #667eea;
   background-color: rgba(102, 126, 234, 0.05);
+}
+/* Page entrance */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.fade-up {
+  animation: fade-up 0.35s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up { animation: none; }
 }

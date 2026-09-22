@@ -258,3 +258,20 @@ export const updateVisitDuration = async (visitorId, visitDuration) => {
 /**
  * @returns {Promise}
  */
+
+// Guard page: sends the guard session token (not the admin one) and handles its own 401s.
+const guardRequest = (token) => ({ ownAuth: true, headers: { Authorization: `Bearer ${token}` } });
+
+export const createGuardSession = ({ officeId, pin }) =>
+  apiClient.post('/api/v1/guard/session', { officeId, pin }, { ownAuth: true });
+
+export const getGuardVisitors = (token) =>
+  apiClient.get('/api/v1/guard/visitors', { ...guardRequest(token), params: { includeDone: true } });
+
+export const guardCheckOut = (token, visitorRequestId) =>
+  apiClient.post(`/api/v1/guard/checkout/${visitorRequestId}`, {}, guardRequest(token));
+
+// Admin: the plaintext PIN is in this response only.
+export const generateGuardPin = (officeId) => apiClient.post('/api/v1/admin/guard-pin', { officeId });
+
+export const getGuardPinStatus = () => apiClient.get('/api/v1/admin/guard-pin');

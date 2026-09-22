@@ -19,7 +19,6 @@ import {
   Tabs,
   Tab,
   TextField,
-  InputAdornment,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -27,20 +26,25 @@ import {
   DialogActions,
   MenuItem,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
-  Search as SearchIcon,
   Phone as PhoneIcon,
   Check as CheckIcon,
   Close as CloseIcon,
   EditCalendar as EditCalendarIcon,
+  PeopleAlt as PeopleAltIcon,
+  Verified as VerifiedIcon,
+  HelpOutline as UnverifiedIcon,
+  PersonSearch as PersonSearchIcon,
+  CheckCircleOutline as ApproveIcon,
+  HighlightOff as RejectIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import MiniDrawer from "../../components/MiniDrawer";
-import { useThemeContext } from "../../context/ThemeContext";
+import { PageHeader, SearchField, segmentedTabsSx, EmptyState } from "../../components/ui";
 import { getVisitorRequests, takeVisitorAction, getBuildings, updateVisitDuration } from "../../utilities/apiUtils/apiHelper";
 
 const Visitors = () => {
-  const { mode } = useThemeContext();
   const navigate = useNavigate();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -382,413 +386,403 @@ const Visitors = () => {
     );
   });
 
+  const formatDateTime = (value) => value && `${formatDate(value)} • ${formatTime(value)}`;
+  // Recorded by the guard at the gate; "Not yet" only makes sense once the pass is approved.
+  const gateTime = (visitor, value) =>
+    formatDateTime(value) || (visitor.status === "APPROVED" ? "Not yet" : null);
+
+  const getDetailRows = (visitor) =>
+    [
+      ["Address", visitor.place],
+      ["Interview Type", visitor.interviewType],
+      ["Employee Code", visitor.employeeCode],
+      ["Other Purpose", visitor.otherVisitPurpose],
+      ["Company", visitor.companyName],
+      ["Meeting With", visitor.meetingWithWhom],
+      ["Person", visitor.personToMeet],
+      ["Department", visitor.departmentOfVisit || visitor.departmentToVisit],
+      ["Visit Days", visitor.visitDays],
+      ["Duration", `${visitor.visitDuration || 0} day(s)`],
+      ["Expected Out", formatDateTime(visitor.expectedOutTime)],
+      ["Checked Out", gateTime(visitor, visitor.actualOutTime)],
+      ["Office", visitor.officeToVisit?.name],
+      ["Visit Type", visitor.visitType],
+      ["Created", `${formatDate(visitor.createdAt)} • ${formatTime(visitor.createdAt)}`],
+    ].filter(([, value]) => value);
+
+  const emptyMessage =
+    selectedTab === 1 ? "No approved visitors found" :
+    selectedTab === 2 ? "No pending visitors found" :
+    searchQuery ? "No visitors match your search" : "No visitors found";
+
+  const isApprove = actionDialog.actionType === "APPROVE";
+
+  const dialogIconSx = (paletteKey) => ({
+    width: 40,
+    height: 40,
+    flexShrink: 0,
+    borderRadius: 2.5,
+    display: "grid",
+    placeItems: "center",
+    color: `${paletteKey}.main`,
+    bgcolor: (theme) => alpha(theme.palette[paletteKey].main, 0.12),
+  });
+
   return (
     <MiniDrawer>
-      <Box sx={{ mb: 4 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 3,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" gutterBottom color="text.primary">
-              Visitor Management
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Total Visitors: {totalRecords}
-            </Typography>
-          </Box>
-        </Box>
+      <PageHeader
+        icon={<PeopleAltIcon />}
+        title="Visitor Management"
+        subtitle={`Total Visitors: ${totalRecords}`}
+      />
 
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          mb: 2.5,
+        }}
+      >
         <Tabs
           value={selectedTab}
           onChange={(e, newValue) => {
             setSelectedTab(newValue);
             setSearchQuery(""); // Clear search when changing tabs
           }}
-          sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}
+          variant="scrollable"
+          scrollButtons={false}
+          sx={segmentedTabsSx}
         >
           <Tab label="All Visitors" />
           <Tab label="Approved" />
           <Tab label="Pending" />
         </Tabs>
 
-        <TextField
-          fullWidth
-          placeholder="Search visitors by name, ID, phone, purpose, department..."
-          variant="outlined"
-          size="small"
+        <SearchField
+          placeholder="Search name, ID, phone, purpose, department..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ mb: 3, maxWidth: 400 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
+          sx={{ width: { xs: "100%", sm: 380 } }}
         />
       </Box>
 
-      {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <Paper sx={{ width: "100%", overflow: "hidden" }}>
-          <TableContainer sx={{ maxHeight: 500 }}>
-            <Table stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Visitor</TableCell>
-                  <TableCell>Contact</TableCell>
-                  <TableCell>Visit Details</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredVisitors.length === 0 ? (
+      <Paper sx={{ width: "100%", overflow: "hidden" }}>
+        {loading ? (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.5,
+              minHeight: 400,
+            }}
+          >
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary">
+              Loading visitors…
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <TableContainer sx={{ maxHeight: { xs: 560, md: "calc(100vh - 300px)" }, minHeight: 240 }}>
+              <Table stickyHeader>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        {selectedTab === 1 ? "No approved visitors found" : 
-                         selectedTab === 2 ? "No pending visitors found" : 
-                         searchQuery ? "No visitors match your search" : "No visitors found"}
-                      </Typography>
-                    </TableCell>
+                    <TableCell>Visitor</TableCell>
+                    <TableCell>Contact</TableCell>
+                    <TableCell sx={{ minWidth: 340, width: "44%" }}>Visit Details</TableCell>
+                    <TableCell sx={{ width: 110 }}>Status</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
-                ) : (
-                  filteredVisitors.map((visitor) => (
-                    <TableRow key={visitor.visitorId} hover>
-                      <TableCell>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                        >
-                          <Avatar
-                            src={visitor.visitorSelfie || undefined}
-                            alt={visitor.visitorName}
-                            imgProps={{
-                              crossOrigin: "anonymous"
-                            }}
-                            sx={{
-                              bgcolor: mode === "dark" ? "#4299E1" : "#3182CE",
-                            }}
-                          >
-                            {getInitials(visitor.visitorName)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight="medium">
-                              {visitor.visitorName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              ID: {visitor.visitorId}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Gov ID: {visitor.governmentId || "N/A"}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <PhoneIcon fontSize="small" />
-                            {visitor.phoneNo || "N/A"}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{ mt: 0.5 }}
-                          >
-                            Type: {visitor.visitorType}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{ mt: 0.5 }}
-                          >
-                            Verified: {visitor.isVerified ? "Yes" : "No"}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          {/* Purpose */}
-                          {visitor.purposeOfVisit && (
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              Purpose: {visitor.purposeOfVisit}
-                            </Typography>
-                          )}
-                          
-                          {/* Address/Place */}
-                          {visitor.place && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Address: {visitor.place}
-                            </Typography>
-                          )}
-                          
-                          {/* Interview Type */}
-                          {visitor.interviewType && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Interview Type: {visitor.interviewType}
-                            </Typography>
-                          )}
-                          
-                          {/* Employee Code */}
-                          {visitor.employeeCode && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Employee Code: {visitor.employeeCode}
-                            </Typography>
-                          )}
-                          
-                          {/* Other Visit Purpose */}
-                          {visitor.otherVisitPurpose && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Other Purpose: {visitor.otherVisitPurpose}
-                            </Typography>
-                          )}
-                          
-                          {/* Company Name */}
-                          {visitor.companyName && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Company: {visitor.companyName}
-                            </Typography>
-                          )}
-                          
-                          {/* Meeting With Whom */}
-                          {visitor.meetingWithWhom && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Meeting With: {visitor.meetingWithWhom}
-                            </Typography>
-                          )}
-                          
-                          {/* Person to Meet */}
-                          {visitor.personToMeet && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Person: {visitor.personToMeet}
-                            </Typography>
-                          )}
-                          
-                          {/* Department - Show departmentOfVisit OR departmentToVisit */}
-                          {(visitor.departmentOfVisit || visitor.departmentToVisit) && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Department: {visitor.departmentOfVisit || visitor.departmentToVisit}
-                            </Typography>
-                          )}
-                          
-                          {/* Visit Days */}
-                          {visitor.visitDays && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Visit Days: {visitor.visitDays}
-                            </Typography>
-                          )}
-                          
-                          {/* Visit Duration */}
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Duration: {visitor.visitDuration || 0} day(s)
-                          </Typography>
-                          
-                          {/* Office to Visit */}
-                          {visitor.officeToVisit?.name && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Office: {visitor.officeToVisit.name}
-                            </Typography>
-                          )}
-                          
-                          {/* Visit Type */}
-                          {visitor.visitType && (
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Visit Type: {visitor.visitType}
-                            </Typography>
-                          )}
-                          
-                          {/* Created Date */}
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Created: {formatDate(visitor.createdAt)} • {formatTime(visitor.createdAt)}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={formatStatusText(visitor.status)}
-                          color={getStatusColor(visitor.status)}
-                          size="small"
-                          sx={{ textTransform: "capitalize" }}
+                </TableHead>
+                <TableBody>
+                  {filteredVisitors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>
+                        <EmptyState
+                          icon={<PersonSearchIcon />}
+                          title={emptyMessage}
+                          description={searchQuery ? "Try a different name, ID or phone number." : undefined}
                         />
                       </TableCell>
-                      <TableCell align="right">
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            gap: 1,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {visitor.status === "PENDING" && (
-                            <>
-                              <Tooltip title="Approve">
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  color="success"
-                                  startIcon={<CheckIcon />}
-                                  onClick={() => openActionDialog(
-                                    visitor.visitorId,
-                                    visitor.visitorName,
-                                    "APPROVE"
-                                  )}
-                                  sx={{ 
-                                    minWidth: 'auto',
-                                    px: 1.5,
-                                    py: 0.5,
-                                    fontSize: '0.75rem'
-                                  }}
-                                >
-                                  Approve
-                                </Button>
-                              </Tooltip>
-                              <Tooltip title="Reject">
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  color="error"
-                                  startIcon={<CloseIcon />}
-                                  onClick={() => openActionDialog(
-                                    visitor.visitorId,
-                                    visitor.visitorName,
-                                    "REJECT"
-                                  )}
-                                  sx={{ 
-                                    minWidth: 'auto',
-                                    px: 1.5,
-                                    py: 0.5,
-                                    fontSize: '0.75rem'
-                                  }}
-                                >
-                                  Reject
-                                </Button>
-                              </Tooltip>
-                            </>
-                          )}
-                          {(visitor.status === "APPROVED" || visitor.status === "PENDING") && (
-                            <Tooltip title="Update Visit Duration">
-                              <Button
+                    </TableRow>
+                  ) : (
+                    filteredVisitors.map((visitor) => (
+                      <TableRow key={visitor.visitorId} hover sx={{ "& > td": { verticalAlign: "top", py: 2 } }}>
+                        {/* Visitor */}
+                        <TableCell sx={{ minWidth: 230 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                            <Avatar
+                              src={visitor.visitorSelfie || undefined}
+                              alt={visitor.visitorName}
+                              slotProps={{ img: { crossOrigin: "anonymous" } }}
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                color: "#fff",
+                                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                                boxShadow: (theme) => `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 3px ${theme.palette.divider}`,
+                              }}
+                            >
+                              {getInitials(visitor.visitorName)}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography sx={{ fontWeight: 600, fontSize: "0.9rem", lineHeight: 1.3 }}>
+                                {visitor.visitorName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                ID:{" "}
+                                <Box component="span" sx={{ fontWeight: 600, color: "text.primary" }}>
+                                  {visitor.visitorId}
+                                </Box>
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                Gov ID: {visitor.governmentId || "N/A"}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+
+                        {/* Contact */}
+                        <TableCell sx={{ minWidth: 170 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ display: "flex", alignItems: "center", gap: 0.75, fontWeight: 500 }}
+                          >
+                            <PhoneIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                            {visitor.phoneNo || "N/A"}
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 0.75, mt: 1, flexWrap: "wrap" }}>
+                            {visitor.visitorType && (
+                              <Chip
                                 size="small"
                                 variant="outlined"
-                                color="primary"
-                                startIcon={<EditCalendarIcon />}
-                                onClick={() => openUpdateDurationDialog(
-                                  visitor.visitorId,
-                                  visitor.visitorName,
-                                  visitor.visitDuration || 0
-                                )}
-                                sx={{ 
-                                  minWidth: 'auto',
-                                  px: 1.5,
-                                  py: 0.5,
-                                  fontSize: '0.75rem',
-                                  borderColor: mode === "dark" ? "#4299E1" : "#3182CE",
-                                  color: mode === "dark" ? "#4299E1" : "#3182CE",
-                                  '&:hover': {
-                                    borderColor: mode === "dark" ? "#2b6cb0" : "#2c5282",
-                                    backgroundColor: mode === "dark" ? "rgba(66, 153, 225, 0.1)" : "rgba(49, 130, 206, 0.1)",
-                                  }
-                                }}
-                              >
-                                Duration
-                              </Button>
-                            </Tooltip>
+                                label={visitor.visitorType}
+                                sx={{ textTransform: "capitalize" }}
+                              />
+                            )}
+                            <Chip
+                              size="small"
+                              color={visitor.isVerified ? "success" : "default"}
+                              icon={visitor.isVerified ? <VerifiedIcon /> : <UnverifiedIcon />}
+                              label={visitor.isVerified ? "Verified" : "Not verified"}
+                            />
+                          </Box>
+                        </TableCell>
+
+                        {/* Visit Details */}
+                        <TableCell>
+                          {visitor.purposeOfVisit && (
+                            <Chip
+                              size="small"
+                              color="primary"
+                              label={visitor.purposeOfVisit}
+                              sx={{ mb: 1.25 }}
+                            />
                           )}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={totalRecords}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Visitors per page:"
-          />
-        </Paper>
-      )}
+                          <Box
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+                              columnGap: 2,
+                              rowGap: 1,
+                            }}
+                          >
+                            {getDetailRows(visitor).map(([label, value]) => (
+                              <Box key={label} sx={{ minWidth: 0 }}>
+                                <Typography
+                                  sx={{
+                                    fontSize: "0.68rem",
+                                    fontWeight: 600,
+                                    letterSpacing: "0.04em",
+                                    textTransform: "uppercase",
+                                    color: "text.secondary",
+                                  }}
+                                >
+                                  {label}
+                                </Typography>
+                                <Typography sx={{ fontSize: "0.8rem", wordBreak: "break-word" }}>
+                                  {value}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          <Chip
+                            label={formatStatusText(visitor.status)}
+                            color={getStatusColor(visitor.status)}
+                            size="small"
+                            icon={
+                              <Box
+                                component="span"
+                                sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "currentColor", ml: "8px !important" }}
+                              />
+                            }
+                            sx={{ textTransform: "capitalize" }}
+                          />
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell align="right">
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                              gap: 1,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            {visitor.status === "PENDING" && (
+                              <>
+                                <Tooltip title="Approve">
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="success"
+                                    startIcon={<CheckIcon />}
+                                    onClick={() => openActionDialog(
+                                      visitor.visitorId,
+                                      visitor.visitorName,
+                                      "APPROVE"
+                                    )}
+                                  >
+                                    Approve
+                                  </Button>
+                                </Tooltip>
+                                <Tooltip title="Reject">
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    startIcon={<CloseIcon />}
+                                    onClick={() => openActionDialog(
+                                      visitor.visitorId,
+                                      visitor.visitorName,
+                                      "REJECT"
+                                    )}
+                                  >
+                                    Reject
+                                  </Button>
+                                </Tooltip>
+                              </>
+                            )}
+                            {(visitor.status === "APPROVED" || visitor.status === "PENDING") && (
+                              <Tooltip title="Update Visit Duration">
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  color="inherit"
+                                  startIcon={<EditCalendarIcon />}
+                                  onClick={() => openUpdateDurationDialog(
+                                    visitor.visitorId,
+                                    visitor.visitorName,
+                                    visitor.visitDuration || 0
+                                  )}
+                                  sx={{
+                                    borderColor: "divider",
+                                    bgcolor: "background.paper",
+                                    "&:hover": {
+                                      borderColor: "primary.main",
+                                      color: "primary.main",
+                                      bgcolor: "background.paper",
+                                    },
+                                  }}
+                                >
+                                  Duration
+                                </Button>
+                              </Tooltip>
+                            )}
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={totalRecords}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Visitors per page:"
+            />
+          </>
+        )}
+      </Paper>
 
       {/* Update Duration Dialog */}
-      <Dialog 
-        open={updateDurationDialog.open} 
-        onClose={closeUpdateDurationDialog} 
-        maxWidth="xs" 
+      <Dialog
+        open={updateDurationDialog.open}
+        onClose={closeUpdateDurationDialog}
+        maxWidth="xs"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
-          }
-        }}
       >
-        <DialogTitle
-          sx={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          <EditCalendarIcon />
-          Update Visit Duration
+        <DialogTitle component="div" sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={dialogIconSx("primary")}>
+            <EditCalendarIcon />
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: "1.05rem" }}>Update Visit Duration</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Change how many days this visit is valid
+            </Typography>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ mt: 3 }}>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Visitor Name
-            </Typography>
-            <Typography variant="body1" fontWeight={600} sx={{ mb: 2 }}>
-              {updateDurationDialog.visitorName}
-            </Typography>
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Current Duration
-            </Typography>
-            <Chip 
-              label={`${updateDurationDialog.currentDuration} day(s)`}
-              size="small"
-              sx={{ 
-                mb: 3,
-                fontWeight: 600,
-                bgcolor: mode === "dark" ? "rgba(66, 153, 225, 0.2)" : "rgba(49, 130, 206, 0.1)",
-                color: mode === "dark" ? "#4299E1" : "#3182CE",
-              }}
-            />
+        <DialogContent>
+          <Box
+            sx={{
+              mt: 1,
+              mb: 2.5,
+              p: 1.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+              borderRadius: 2.5,
+              border: 1,
+              borderColor: "divider",
+              bgcolor: "action.hover",
+            }}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary">
+                Visitor Name
+              </Typography>
+              <Typography sx={{ fontWeight: 600 }} noWrap>
+                {updateDurationDialog.visitorName}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Current Duration
+              </Typography>
+              <Chip
+                label={`${updateDurationDialog.currentDuration} day(s)`}
+                size="small"
+                color="primary"
+              />
+            </Box>
           </Box>
 
           <TextField
             fullWidth
             type="number"
-            label="New Visit Duration (days) *"
+            label="New Visit Duration (days)"
             value={updateDurationDialog.newDuration}
-            onChange={(e) => setUpdateDurationDialog(prev => ({ 
-              ...prev, 
-              newDuration: e.target.value 
+            onChange={(e) => setUpdateDurationDialog(prev => ({
+              ...prev,
+              newDuration: e.target.value
             }))}
             placeholder="Enter number of days"
             InputProps={{
@@ -796,21 +790,14 @@ const Visitors = () => {
             }}
             helperText="Enter the new visit duration in days (1-365)"
             required
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 2,
-              }
-            }}
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button 
-            onClick={closeUpdateDurationDialog} 
+        <DialogActions>
+          <Button
+            onClick={closeUpdateDurationDialog}
+            variant="outlined"
             color="inherit"
-            sx={{ 
-              borderRadius: 2,
-              px: 3,
-            }}
+            sx={{ borderColor: "divider" }}
           >
             Cancel
           </Button>
@@ -818,17 +805,6 @@ const Visitors = () => {
             onClick={handleUpdateDuration}
             variant="contained"
             disabled={!updateDurationDialog.newDuration || parseInt(updateDurationDialog.newDuration) <= 0}
-            sx={{
-              borderRadius: 2,
-              px: 3,
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              '&:hover': {
-                background: "linear-gradient(135deg, #5568d3 0%, #6b46c1 100%)",
-              },
-              '&:disabled': {
-                background: "rgba(0, 0, 0, 0.12)",
-              }
-            }}
           >
             Update Duration
           </Button>
@@ -837,39 +813,45 @@ const Visitors = () => {
 
       {/* Action Dialog for Approve/Reject */}
       <Dialog open={actionDialog.open} onClose={closeActionDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {actionDialog.actionType === "APPROVE" ? "Approve Visitor" : "Reject Visitor"}
+        <DialogTitle component="div" sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={dialogIconSx(isApprove ? "success" : "error")}>
+            {isApprove ? <ApproveIcon /> : <RejectIcon />}
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 600, fontSize: "1.05rem" }}>
+              {isApprove ? "Approve Visitor" : "Reject Visitor"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {isApprove ? "Approving" : "Rejecting"} visitor:{" "}
+              <Box component="strong" sx={{ color: "text.primary" }}>{actionDialog.visitorName}</Box>
+            </Typography>
+          </Box>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            {actionDialog.actionType === "APPROVE" ? "Approving" : "Rejecting"} visitor:{" "}
-            <strong>{actionDialog.visitorName}</strong>
-          </Typography>
-          
           <TextField
             fullWidth
             multiline
             rows={3}
-            label="Comment *"
+            label="Comment"
             value={actionDialog.comment}
-            onChange={(e) => setActionDialog(prev => ({ 
-              ...prev, 
-              comment: e.target.value 
+            onChange={(e) => setActionDialog(prev => ({
+              ...prev,
+              comment: e.target.value
             }))}
             placeholder="Enter comment for this action..."
-            sx={{ mt: 2 }}
+            sx={{ mt: 1.5 }}
             required
           />
 
-          {actionDialog.actionType === "APPROVE" && (
+          {isApprove && (
             <TextField
               fullWidth
               select
               label="Guest House (Optional)"
               value={actionDialog.guestHouseId}
-              onChange={(e) => setActionDialog(prev => ({ 
-                ...prev, 
-                guestHouseId: e.target.value 
+              onChange={(e) => setActionDialog(prev => ({
+                ...prev,
+                guestHouseId: e.target.value
               }))}
               sx={{ mt: 2 }}
               disabled={loadingGuestHouses}
@@ -902,16 +884,16 @@ const Visitors = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeActionDialog} color="inherit">
+          <Button onClick={closeActionDialog} variant="outlined" color="inherit" sx={{ borderColor: "divider" }}>
             Cancel
           </Button>
           <Button
             onClick={handleTakeAction}
             variant="contained"
-            color={actionDialog.actionType === "APPROVE" ? "success" : "error"}
-            disabled={!actionDialog.comment.trim() || (actionDialog.actionType === "APPROVE" && loadingGuestHouses)}
+            color={isApprove ? "success" : "error"}
+            disabled={!actionDialog.comment.trim() || (isApprove && loadingGuestHouses)}
           >
-            {actionDialog.actionType === "APPROVE" ? "Approve" : "Reject"}
+            {isApprove ? "Approve" : "Reject"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -925,7 +907,7 @@ const Visitors = () => {
         <Alert
           onClose={handleCloseSnackbar}
           severity={snackbar.severity}
-          sx={{ width: "100%" }}
+          sx={{ width: "100%", boxShadow: 8 }}
         >
           {snackbar.message}
         </Alert>
