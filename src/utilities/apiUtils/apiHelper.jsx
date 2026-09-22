@@ -268,9 +268,6 @@ export const createGuardSession = ({ officeId, pin }) =>
 export const getGuardVisitors = (token) =>
   apiClient.get('/api/v1/guard/visitors', { ...guardRequest(token), params: { includeDone: true } });
 
-export const guardCheckIn = (token, visitorRequestId) =>
-  apiClient.post(`/api/v1/guard/checkin/${visitorRequestId}`, {}, guardRequest(token));
-
 export const guardCheckOut = (token, visitorRequestId) =>
   apiClient.post(`/api/v1/guard/checkout/${visitorRequestId}`, {}, guardRequest(token));
 

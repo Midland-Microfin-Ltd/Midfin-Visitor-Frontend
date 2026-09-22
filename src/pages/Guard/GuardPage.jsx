@@ -39,7 +39,6 @@ import {
   createGuardSession,
   getGuardVisitors,
   getOffice,
-  guardCheckIn,
   guardCheckOut,
 } from "../../utilities/apiUtils/apiHelper";
 import {
@@ -53,7 +52,6 @@ const SESSION_KEY = "guardSession";
 const STATUS_CHIP = {
   INSIDE: { label: "Inside", color: "success" },
   OVERDUE: { label: "Overdue", color: "error" },
-  NOT_ARRIVED: { label: "Not arrived", color: "default" },
   CHECKED_OUT: { label: "Checked out", color: "info" },
 };
 
@@ -129,7 +127,7 @@ function PinScreen({ onLogin, notice }) {
             </Avatar>
             <Box>
               <Typography variant="h6" fontWeight={700}>
-                Gate check-in
+                Gate checkout
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Choose your office and enter today's PIN
@@ -193,10 +191,9 @@ function PinScreen({ onLogin, notice }) {
   );
 }
 
-function VisitorCard({ visitor, onCheckIn, onCheckOut }) {
-  const inTime = todayTime(visitor.actualInTime);
-  const outTime = visitor.status === "CHECKED_OUT" ? todayTime(visitor.actualOutTime) : null;
-  const canCheckIn = visitor.status === "NOT_ARRIVED" || visitor.status === "CHECKED_OUT";
+function VisitorCard({ visitor, onCheckOut }) {
+  const checkedOut = visitor.status === "CHECKED_OUT";
+  const outTime = checkedOut ? todayTime(visitor.actualOutTime) : null;
   const details = [
     visitor.purpose,
     visitor.personToMeet && `meeting ${visitor.personToMeet}`,
@@ -230,7 +227,6 @@ function VisitorCard({ visitor, onCheckIn, onCheckOut }) {
           <Typography variant="body2">{details.join(" · ")}</Typography>
           <Typography variant="body2" color="text.secondary">
             Expected out {expectedLabel(visitor.expectedOutTime)}
-            {inTime && ` · In ${inTime}`}
             {outTime && ` · Out ${outTime}`}
           </Typography>
           {visitor.numberOfVisitors > 1 && (
@@ -245,22 +241,17 @@ function VisitorCard({ visitor, onCheckIn, onCheckOut }) {
         </Box>
       </CardContent>
       <CardActions sx={{ px: 2, pb: 2 }}>
-        {canCheckIn ? (
-          <Button fullWidth size="large" variant="contained" disabled={visitor.pending} onClick={onCheckIn}>
-            {visitor.pending ? "Saving…" : visitor.status === "CHECKED_OUT" ? "Check in again" : "Check in"}
-          </Button>
-        ) : (
-          <Button
-            fullWidth
-            size="large"
-            variant="outlined"
-            color="error"
-            disabled={visitor.pending}
-            onClick={onCheckOut}
-          >
-            {visitor.pending ? "Saving…" : "Check out"}
-          </Button>
-        )}
+        {/* Checking out again after a re-entry records the later exit. */}
+        <Button
+          fullWidth
+          size="large"
+          variant={checkedOut ? "outlined" : "contained"}
+          color="error"
+          disabled={visitor.pending}
+          onClick={onCheckOut}
+        >
+          {visitor.pending ? "Saving…" : checkedOut ? "Check out again" : "Check out"}
+        </Button>
       </CardActions>
     </Card>
   );
@@ -317,20 +308,19 @@ function VisitorList({ session, onLogout, onExpired }) {
 
   // Optimistic: the row changes at once and rolls back if the server doesn't confirm. A failure always stays
   // on screen with a retry, so the guard never walks away thinking an unsaved checkout was recorded.
-  const act = async (visitor, action) => {
-    const checkingIn = action === "checkin";
-    replace({ ...visitor, pending: true, status: checkingIn ? "INSIDE" : "CHECKED_OUT" });
+  const checkOut = async (visitor) => {
+    replace({ ...visitor, pending: true, status: "CHECKED_OUT" });
     setFailure(null);
     try {
-      const res = await (checkingIn ? guardCheckIn : guardCheckOut)(session.token, visitor.id);
+      const res = await guardCheckOut(session.token, visitor.id);
       replace(res.data);
-      setToast(`${visitor.name} ${checkingIn ? "checked in" : "checked out"}`);
+      setToast(`${visitor.name} checked out`);
     } catch (err) {
       replace(visitor);
       if (err?.status === 401) return onExpired();
       setFailure({
-        message: `${checkingIn ? "Check-in" : "Check-out"} for ${visitor.name} was NOT recorded. ${errorText(err)}`,
-        retry: () => act(visitor, action),
+        message: `Check-out for ${visitor.name} was NOT recorded. ${errorText(err)}`,
+        retry: () => checkOut(visitor),
       });
     }
   };
@@ -352,8 +342,7 @@ function VisitorList({ session, onLogout, onExpired }) {
               {session.officeName || `Office ${session.officeId}`}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {count("INSIDE") + count("OVERDUE")} inside · {count("OVERDUE")} overdue · {count("NOT_ARRIVED")}{" "}
-              expected
+              {count("INSIDE") + count("OVERDUE")} inside · {count("OVERDUE")} overdue
             </Typography>
           </Box>
           <IconButton aria-label="Refresh" onClick={load} disabled={loading}>
@@ -413,7 +402,6 @@ function VisitorList({ session, onLogout, onExpired }) {
           <VisitorCard
             key={visitor.id}
             visitor={visitor}
-            onCheckIn={() => act(visitor, "checkin")}
             onCheckOut={() => setConfirmOut(visitor)}
           />
         ))}
@@ -448,7 +436,7 @@ function VisitorList({ session, onLogout, onExpired }) {
             onClick={() => {
               const visitor = confirmOut;
               setConfirmOut(null);
-              act(visitor, "checkout");
+              checkOut(visitor);
             }}
           >
             Check out
