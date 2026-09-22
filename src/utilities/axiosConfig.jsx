@@ -17,7 +17,8 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = retrieveFromLocalStorage('token');
-    if (token) {
+    // ownAuth requests (the guard page) bring their own token.
+    if (token && !config.ownAuth) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
@@ -39,6 +40,12 @@ apiClient.interceptors.response.use(
         errorCode: "networkError", 
         errorDescription: "Please check your internet connection!" 
       });
+    }
+
+    // ownAuth requests handle their own 401 (expired guard session, wrong PIN) and need the status (429 lockout).
+    if (error.config?.ownAuth) {
+      const data = typeof error.response.data === 'object' ? error.response.data : {};
+      return Promise.reject({ status: error.response.status, ...data });
     }
 
     if (error.response.status === 401) {

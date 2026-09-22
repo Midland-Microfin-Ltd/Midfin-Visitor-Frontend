@@ -62,6 +62,7 @@ import {
   PendingActions as PendingActionsIcon,
   Groups as GroupsIcon,
   HowToReg as HowToRegIcon,
+  Event as EventIcon,
 } from "@mui/icons-material";
 import {
   sendOtp,
@@ -211,6 +212,20 @@ const INITIAL_FORM_DATA = {
   visitDays: "",
   // Other Visit specific
   otherVisitPurpose: "",
+  // Expected out time ("HH:mm"), common for all purposes
+  outTime: "",
+};
+
+// Expected out date/time, pinned to IST (fixed +05:30, no DST) to match the backend's dateHelper.
+// A 1-day visit leaves today; an N-day Employee Visit leaves on day N.
+const getExpectedOut = (purposeId, visitDays, outTime, nowMs = Date.now()) => {
+  const days = purposeId === "employee-visit" ? parseInt(visitDays, 10) : 1;
+  if (!(days >= 1 && days <= 365)) return { date: "", at: null, isPast: false };
+  const date = new Date(nowMs + 330 * 60000 + (days - 1) * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const at = outTime ? new Date(`${date}T${outTime}+05:30`) : null;
+  return { date, at, isPast: at !== null && at.getTime() <= nowMs };
 };
 
 const CameraComponent = ({ onCapture, onCancel, isMobile }) => {
@@ -780,10 +795,31 @@ export default function VisitorForm() {
 
   // Derived values
   const selectedPurpose = PURPOSES.find((p) => p.id === formData.purpose);
+  const expectedOut = getExpectedOut(
+    selectedPurpose?.id,
+    formData.visitDays,
+    formData.outTime
+  );
+  const outFieldSx = {
+    "& .MuiOutlinedInput-root": {
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      color: "white",
+      borderRadius: 3,
+      "& fieldset": { borderColor: "rgba(255, 255, 255, 0.2)" },
+      "&:hover fieldset": { borderColor: `${selectedPurpose?.color}80` },
+      "&.Mui-focused fieldset": {
+        borderColor: selectedPurpose?.color,
+        boxShadow: `0 0 0 2px ${selectedPurpose?.color}20`,
+      },
+    },
+    "& .MuiInputLabel-root": { color: "rgba(255, 255, 255, 0.7)" },
+    "& input": { colorScheme: "dark" },
+  };
 
   // Dynamic validation based on purpose
   const canProceedToReview = () => {
     if (!selectedPurpose) return false;
+    if (!expectedOut.at || expectedOut.isPast) return false;
 
     // Validate visitor count (common for all)
     const visitorCountValid =
@@ -1132,6 +1168,7 @@ export default function VisitorForm() {
       officeId: formData.officeToVisit,
       registerdBy: "self",
       numberOfVisitors: parseInt(formData.numberOfVisitors) || 1,
+      expectedOutTime: expectedOut.at?.toISOString() ?? null,
     };
 
     // Add purpose-specific fields
@@ -4889,6 +4926,65 @@ export default function VisitorForm() {
                       }}
                     />
                   </>
+                )}
+
+                {/* Expected Out Time - common for all purposes */}
+                {selectedPurpose && (
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                    <TextField
+                      fullWidth
+                      label="Expected Out Date"
+                      value={
+                        expectedOut.date
+                          ? new Date(
+                              `${expectedOut.date}T00:00:00+05:30`
+                            ).toLocaleDateString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : ""
+                      }
+                      placeholder="Enter visit days first"
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        readOnly: true,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <EventIcon sx={{ color: selectedPurpose.color }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={outFieldSx}
+                    />
+                    <TextField
+                      fullWidth
+                      required
+                      type="time"
+                      label="Expected Out Time"
+                      value={formData.outTime}
+                      onChange={handleChange("outTime")}
+                      error={expectedOut.isPast}
+                      helperText={
+                        expectedOut.isPast
+                          ? "Out time must be later than the current time"
+                          : ""
+                      }
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <ScheduleIcon
+                              sx={{ color: selectedPurpose.color }}
+                            />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={outFieldSx}
+                    />
+                  </Stack>
                 )}
 
                 <Box sx={{ display: "flex", gap: 2, mt: { xs: 2, sm: 3 } }}>
